@@ -1,3 +1,4 @@
+import time
 import numpy as np # linear algebra
 import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
 import cv2
@@ -17,26 +18,6 @@ from utils import *
 import warnings
 warnings.filterwarnings('ignore')
 
-def Resize(df,size=128):
-    resized = {} 
-    df = df.set_index('image_id')
-    for i in tqdm(range(df.shape[0])):
-       # image = cv2.resize(df.loc[df.index[i]].values.reshape(137,236),(size,size))
-        image0 = 255 - df.loc[df.index[i]].values.reshape(137,236).astype(np.uint8)
-    #normalize each image by its max val
-        img = (image0*(255.0/image0.max())).astype(np.uint8)
-        image = crop_resize(img)
-        resized[df.index[i]] = image.reshape(-1)
-    resized = pd.DataFrame(resized).T.reset_index()
-    resized.columns = resized.columns.astype(str)
-    resized.rename(columns={'index':'image_id'},inplace=True)
-    return resized
-
-def onehot(size, target):
-    vec = torch.zeros(size, dtype=torch.float32)
-    vec[target] = 1.
-    return vec
-
 class MelanomaDataset(Dataset):
     def __init__(self, csv_file, data_idxs, transforms=None, phase='train'):
         super().__init__()
@@ -55,7 +36,6 @@ class MelanomaDataset(Dataset):
         image = image.astype(np.float32) / 255.0
 
         label = self.df['target'][self.data_idxs[idx]]
-
         if self.transforms:
             aug = self.transforms(image=image)
             image = aug['image'].reshape(self.dim, self.dim, 3).transpose(2, 0, 1)

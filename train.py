@@ -69,12 +69,12 @@ opts = ['normal', 'mixup', 'cutmix']
 device = 'cuda:0'
 # device = 'cpu:0'
 apex = False
-pretrained_model = 'seresnext50_32x4d'
+pretrained_model = 'se_resnext50_32x4d'
 model_name = '{}_trial_stage1_fold_{}'.format(pretrained_model, fold)
 model_dir = 'model_dir'
 history_dir = 'history_dir'
 imagenet_stats = ([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-load_model = False
+load_model = True
 history = pd.DataFrame()
 prev_epoch_num = 0
 n_epochs = 3
@@ -132,11 +132,11 @@ for i in T(range(len(train_df))):
 # train_idx = np.load('train_pseudo_idxs.npy')
 # val_idx = idxs[int((n_fold-1)*len(idxs)/(n_fold)):]
 
-train_ds = MelanomaDataset('data/train.csv', train_idx[:320], transforms=train_aug)
-train_loader = DataLoader(train_ds,batch_size=batch_size, shuffle=True)
+train_ds = MelanomaDataset('data/train.csv', train_idx, transforms=train_aug)
+train_loader = DataLoader(train_ds,batch_size=batch_size, shuffle=True, num_workers=4)
 
-valid_ds = MelanomaDataset('data/train.csv', val_idx[:320], transforms=None)
-valid_loader = DataLoader(valid_ds, batch_size=batch_size, shuffle=True)
+valid_ds = MelanomaDataset('data/train.csv', val_idx, transforms=val_aug)
+valid_loader = DataLoader(valid_ds, batch_size=batch_size, shuffle=True, num_workers=4)
 
 ## This function for train is copied from @hanjoonchoe
 ## We are going to train and track accuracy and then evaluate and track validation accuracy
@@ -192,7 +192,7 @@ def train(epoch,history):
     lr = None
     for param_group in optimizer.param_groups:
         lr = param_group['lr']
-    if idx%1==0:
+    if idx%5==0:
       msg = 'Epoch: {} \t Progress: {}/{} \t Loss: {:.4f} \t Time: {}s \t ETA: {}s'.format(epoch, 
       idx, len(train_loader), running_loss/(idx+1), elapsed, eta)
       print(msg, end='\r')
