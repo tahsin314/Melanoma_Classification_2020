@@ -28,7 +28,7 @@ from optimizers import Over9000
 from augmentations.augmix import RandomAugMix
 from augmentations.gridmask import GridMask
 from model.seresnext import seresnext
-# from model.effnet import EfficientNetWrapper
+from model.effnet import EfficientNetWrapper
 # from model.densenet import *
 ## This library is for augmentations .
 from albumentations import (
@@ -36,6 +36,8 @@ from albumentations import (
     HorizontalFlip,
     VerticalFlip,    
     CenterCrop,    
+    RandomCrop,
+    Resize,
     Crop,
     Compose,
     Transpose,
@@ -67,14 +69,13 @@ learning_rate = 1e-3
 patience = 5
 opts = ['normal', 'mixup', 'cutmix']
 device = 'cuda:0'
-# device = 'cpu:0'
 apex = False
-pretrained_model = 'se_resnext50_32x4d'
+pretrained_model = 'efficientnet_b2'
 model_name = '{}_trial_stage1_fold_{}'.format(pretrained_model, fold)
 model_dir = 'model_dir'
 history_dir = 'history_dir'
 imagenet_stats = ([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-load_model = True
+load_model = False
 history = pd.DataFrame()
 prev_epoch_num = 0
 n_epochs = 3
@@ -92,6 +93,8 @@ train_aug =Compose([
     Cutout(p=0.3, max_h_size=sz//16, max_w_size=sz//16, num_holes=10, fill_value=0),
     # GridMask(num_grid=7, p=0.7, fill_value=0)
     ], p=0.20),
+    Compose([RandomCrop(int(sz*0.8), int(sz*0.8), p=0.6),
+    Resize(sz, sz, interpolation=1, always_apply=False, p=1)]),
     # RandomAugMix(severity=1, width=1, alpha=1., p=0.3),
     # OneOf([
     #     ElasticTransform(p=0.1, alpha=1, sigma=50, alpha_affine=30,border_mode=cv2.BORDER_CONSTANT,value =0),
@@ -108,20 +111,21 @@ train_aug =Compose([
     ]
       )
 val_aug = Compose([Normalize()])
-train_df = pd.read_csv('data/train.csv')
-X, y = train_df['image_name'], train_df['target']
-train_df['fold'] = np.nan
+train_df = pd.read_csv('data/folds.csv')
+X, y = train_df['image_id'], train_df['target']
+# train_df['fold'] = np.nan
 train_df= train_df.sample(frac=1, random_state=SEED).reset_index(drop=True)
 #split data
-mskf = StratifiedKFold(n_splits=n_fold, shuffle=True, random_state=SEED)
-for i, (_, test_index) in enumerate(mskf.split(X, y)):
-    train_df.iloc[test_index, -1] = i
+# mskf = StratifiedKFold(n_splits=n_fold, shuffle=True, random_state=SEED)
+# for i, (_, test_index) in enumerate(mskf.split(X, y)):
+#     train_df.iloc[test_index, -1] = i
     
 train_df['fold'] = train_df['fold'].astype('int')
 idxs = [i for i in range(len(train_df))]
 train_idx = []
 val_idx = []
-model = seresnext(pretrained_model).to(device)
+# model = seresnext(pretrained_model).to(device)
+model = EfficientNetWrapper('efficientnet-b2').to(device)
 
 # For stratified split
 for i in T(range(len(train_df))):
@@ -132,10 +136,10 @@ for i in T(range(len(train_df))):
 # train_idx = np.load('train_pseudo_idxs.npy')
 # val_idx = idxs[int((n_fold-1)*len(idxs)/(n_fold)):]
 
-train_ds = MelanomaDataset('data/train.csv', train_idx, transforms=train_aug)
+train_ds = MelanomaDataset('data/folds.csv', train_idx, transforms=train_aug)
 train_loader = DataLoader(train_ds,batch_size=batch_size, shuffle=True, num_workers=4)
 
-valid_ds = MelanomaDataset('data/train.csv', val_idx, transforms=val_aug)
+valid_ds = MelanomaDataset('data/folds.csv', val_idx, transforms=val_aug)
 valid_loader = DataLoader(valid_ds, batch_size=batch_size, shuffle=True, num_workers=4)
 
 ## This function for train is copied from @hanjoonchoe
@@ -171,13 +175,13 @@ def train(epoch,history):
     elif choice[0] == 'mixup':
       inputs, targets = mixup(inputs, labels, np.random.uniform(0.8, 1.0))
       outputs = model(inputs.float())
-      loss = mixup_criterion(outputs, targets, rate=rate)
+      loss = mixup_criterion(outputs, targets, criterion='smooth', rate=rate)
       running_loss += loss.item()
     
     elif choice[0] == 'cutmix':
       inputs, targets = cutmix(inputs, labels, np.random.uniform(0.8, 1.0))
       outputs = model(inputs.float())
-      loss = cutmix_criterion(outputs, targets, rate=rate)
+      loss = cutmix_criterion(outputs, targets, criterion='smooth', rate=rate)
       running_loss += loss.item()
     if apex:
         with amp.scale_loss(loss, optimizer) as scaled_loss:
@@ -247,13 +251,13 @@ optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 # scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, learning_rate, total_steps=None, epochs=n_epochs, steps_per_epoch=3348, pct_start=0.0,
                                   #  anneal_strategy='cos', cycle_momentum=True,base_momentum=0.85, max_momentum=0.95,  div_factor=100.0)
 lr_reduce_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=patience, verbose=True, threshold=1e-4, threshold_mode='rel', cooldown=0, min_lr=1e-7, eps=1e-08)
-criterion = nn.CrossEntropyLoss()
+# criterion = nn.CrossEntropyLoss()
+criterion = LabelSmoothing() 
 
 if load_model:
   tmp = torch.load(os.path.join(model_dir, model_name+'_loss.pth'))
   model.load_state_dict(tmp['model'])
   optimizer.load_state_dict(tmp['optim'])
-  best_valid_recall = tmp['recall']
   prev_epoch_num = tmp['epoch']
   best_valid_loss = tmp['best_loss']
   del tmp

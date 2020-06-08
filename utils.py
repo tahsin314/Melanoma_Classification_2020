@@ -3,6 +3,7 @@ import cv2
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
+from torch.autograd import Variable
 import albumentations
 from albumentations.core.transforms_interface import DualTransform
 from albumentations.augmentations import functional as F_alb
@@ -81,19 +82,21 @@ def cutmix_criterion(preds, targets, criterion='ohem', rate=0.7):
     targets1, targets2, lam = targets[0], targets[1], targets[2]
     if criterion=='ohem':
         criterion = ohem_loss
-        return lam * criterion(rate, preds, targets1) + (1 - lam) * criterion(rate, preds, targets2)
+    elif criterion=='smooth':
+        criterion = LabelSmoothing()
     else:
         criterion = nn.CrossEntropyLoss(reduction='mean')
-        return lam * criterion(preds, targets1) + (1 - lam) * criterion(preds, targets2)
+    return lam * criterion(preds, targets1) + (1 - lam) * criterion(preds, targets2)
 
 def mixup_criterion(preds, targets, criterion='ohem', rate=0.7):
     targets1, targets2, lam = targets[0], targets[1], targets[2]
     if criterion=='ohem':
         criterion = ohem_loss
-        return lam * criterion(rate, preds, targets1) + (1 - lam) * criterion(rate, preds, targets2)
+    elif criterion=='smooth':
+        criterion = LabelSmoothing()
     else:
         criterion = nn.CrossEntropyLoss(reduction='mean')
-        return lam * criterion(preds, targets1) + (1 - lam) * criterion(preds, targets2)
+    return lam * criterion(preds, targets1) + (1 - lam) * criterion(preds, targets2)
 
 
 class RandomErasing:
@@ -128,7 +131,37 @@ class RandomErasing:
 
         return image  
 
-def ohem_loss( rate, cls_pred, cls_target ):
+def one_hot(index, classes):
+    size = index.size() + (classes,)
+    view = index.size() + (1,)
+
+    mask = torch.Tensor(*size).fill_(0)
+    index = index.view(*view).cuda()
+    ones = 1.
+
+    if isinstance(index, Variable):
+        ones = Variable(torch.Tensor(index.size()).fill_(1))
+        mask = Variable(mask, volatile=index.volatile)
+
+    return mask.scatter_(1, index, ones)
+
+class FocalLoss(nn.Module):
+    def __init__(self, gamma=0, eps=1e-7):
+        super(FocalLoss, self).__init__()
+        self.gamma = gamma
+        self.eps = eps
+
+    def forward(self, input, target):
+        y = one_hot(target, input.size(-1))
+        logit = F.softmax(input, dim=-1)
+        logit = logit.clamp(self.eps, 1. - self.eps)
+
+        loss = -1 * y * torch.log(logit) # cross entropy
+        loss = loss * (1 - logit) ** self.gamma # focal loss
+
+        return loss.sum()
+
+def ohem_loss(rate, cls_pred, cls_target ):
 
     batch_size = cls_pred.size(0) 
     ohem_cls_loss = F.cross_entropy(cls_pred, cls_target, reduction='none', ignore_index=-1)
@@ -141,3 +174,31 @@ def ohem_loss( rate, cls_pred, cls_target ):
     cls_loss = ohem_cls_loss.sum() / keep_num
     return cls_loss
 
+class LabelSmoothing(nn.Module):
+    def __init__(self, smoothing = 0.1):
+        super(LabelSmoothing, self).__init__()
+        self.confidence = 1.0 - smoothing
+        self.smoothing = smoothing
+
+    def forward(self, x, target):
+        if self.training:
+            x = x.float()
+            # print(target)
+            # labels = torch.tensor([1, 2, 3, 5])
+            one_hot = torch.zeros(x.size(0), 2)
+            one_hot[torch.arange(x.size(0)), target] = 1
+            # target = target.float()
+            one_hot = one_hot.float().cuda()
+            # print(target)
+            logprobs = torch.nn.functional.log_softmax(x, dim = -1)
+
+            nll_loss = -logprobs * one_hot
+            nll_loss = nll_loss.sum(-1)
+    
+            smooth_loss = -logprobs.mean(dim=-1)
+
+            loss = self.confidence * nll_loss + self.smoothing * smooth_loss
+
+            return loss.mean()
+        else:
+            return torch.nn.functional.cross_entropy(x, target)

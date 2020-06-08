@@ -19,17 +19,17 @@ import warnings
 warnings.filterwarnings('ignore')
 
 class MelanomaDataset(Dataset):
-    def __init__(self, csv_file, data_idxs, transforms=None, phase='train'):
+    def __init__(self, csv_file, data_idxs, dim=256, transforms=None, phase='train'):
         super().__init__()
         self.df = pd.read_csv(csv_file)
         self.data_idxs = data_idxs
         self.transforms = transforms
         self.phase = phase
-        self.dim = 256
+        self.dim = dim
 
     def __getitem__(self, idx: int):
-        TRAIN_ROOT_PATH = 'data/jpeg/train'
-        image_id = self.df['image_name'][self.data_idxs[idx]]
+        TRAIN_ROOT_PATH = 'data/512x512-dataset-melanoma/512x512-dataset-melanoma/'
+        image_id = self.df['image_id'][self.data_idxs[idx]]
         image = cv2.imread(f'{TRAIN_ROOT_PATH}/{image_id}.jpg', cv2.IMREAD_COLOR)
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         image = cv2.resize(image, (self.dim, self.dim))
