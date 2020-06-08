@@ -65,17 +65,17 @@ fold = 1
 SEED = 24
 batch_size = 48
 sz = 256
-learning_rate = 1e-3
+learning_rate = 5e-4
 patience = 5
 opts = ['normal', 'mixup', 'cutmix']
 device = 'cuda:0'
 apex = False
-pretrained_model = 'efficientnet_b2'
+pretrained_model = 'se_resnext50_32x4d'
 model_name = '{}_trial_stage1_fold_{}'.format(pretrained_model, fold)
 model_dir = 'model_dir'
 history_dir = 'history_dir'
 imagenet_stats = ([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-load_model = False
+load_model = True
 history = pd.DataFrame()
 prev_epoch_num = 0
 n_epochs = 3
@@ -124,8 +124,8 @@ train_df['fold'] = train_df['fold'].astype('int')
 idxs = [i for i in range(len(train_df))]
 train_idx = []
 val_idx = []
-# model = seresnext(pretrained_model).to(device)
-model = EfficientNetWrapper('efficientnet-b2').to(device)
+model = seresnext(pretrained_model).to(device)
+# model = EfficientNetWrapper('efficientnet-b2').to(device)
 
 # For stratified split
 for i in T(range(len(train_df))):
@@ -251,8 +251,8 @@ optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 # scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, learning_rate, total_steps=None, epochs=n_epochs, steps_per_epoch=3348, pct_start=0.0,
                                   #  anneal_strategy='cos', cycle_momentum=True,base_momentum=0.85, max_momentum=0.95,  div_factor=100.0)
 lr_reduce_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=patience, verbose=True, threshold=1e-4, threshold_mode='rel', cooldown=0, min_lr=1e-7, eps=1e-08)
-# criterion = nn.CrossEntropyLoss()
-criterion = LabelSmoothing() 
+criterion = nn.CrossEntropyLoss()
+# criterion = LabelSmoothing() 
 
 if load_model:
   tmp = torch.load(os.path.join(model_dir, model_name+'_loss.pth'))
