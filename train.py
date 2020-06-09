@@ -28,7 +28,7 @@ from optimizers import Over9000
 from augmentations.augmix import RandomAugMix
 from augmentations.gridmask import GridMask
 from model.seresnext import seresnext
-from model.effnet import EfficientNetWrapper
+from model.effnet import EffNet
 # from model.densenet import *
 ## This library is for augmentations .
 from albumentations import (
@@ -61,16 +61,16 @@ from albumentations import (
     Normalize, 
 )
 n_fold = 5
-fold = 1
+fold = 0
 SEED = 24
-batch_size = 48
-sz = 256
-learning_rate = 5e-4
+batch_size = 32
+sz = 384
+learning_rate = 5e-5
 patience = 5
 opts = ['normal', 'mixup', 'cutmix']
 device = 'cuda:0'
 apex = False
-pretrained_model = 'se_resnext50_32x4d'
+pretrained_model = 'efficientnet-b4'
 model_name = '{}_trial_stage1_fold_{}'.format(pretrained_model, fold)
 model_dir = 'model_dir'
 history_dir = 'history_dir'
@@ -93,8 +93,7 @@ train_aug =Compose([
     Cutout(p=0.3, max_h_size=sz//16, max_w_size=sz//16, num_holes=10, fill_value=0),
     # GridMask(num_grid=7, p=0.7, fill_value=0)
     ], p=0.20),
-    Compose([RandomCrop(int(sz*0.8), int(sz*0.8), p=0.6),
-    Resize(sz, sz, interpolation=1, always_apply=False, p=1)]),
+    RandomSizedCrop(min_max_height=(int(sz*0.8), int(sz*0.8)), height=sz, width=sz, p=0.5),
     # RandomAugMix(severity=1, width=1, alpha=1., p=0.3),
     # OneOf([
     #     ElasticTransform(p=0.1, alpha=1, sigma=50, alpha_affine=30,border_mode=cv2.BORDER_CONSTANT,value =0),
@@ -107,7 +106,7 @@ train_aug =Compose([
         GaussianBlur(blur_limit=3),
         RandomGamma(p=0.8),
         ], p=0.5),
-    Normalize()
+    # Normalize()
     ]
       )
 val_aug = Compose([Normalize()])
@@ -124,22 +123,22 @@ train_df['fold'] = train_df['fold'].astype('int')
 idxs = [i for i in range(len(train_df))]
 train_idx = []
 val_idx = []
-model = seresnext(pretrained_model).to(device)
-# model = EfficientNetWrapper('efficientnet-b2').to(device)
+# model = seresnext(pretrained_model).to(device)
+model = EffNet(pretrained_model).to(device)
 
 # For stratified split
-for i in T(range(len(train_df))):
-    if train_df.iloc[i]['fold'] == fold: val_idx.append(i)
-    else: train_idx.append(i)
+# for i in T(range(len(train_df))):
+#     if train_df.iloc[i]['fold'] == fold: val_idx.append(i)
+#     else: train_idx.append(i)
 
 # train_idx = idxs[:int((n_fold-1)*len(idxs)/(n_fold))]
 # train_idx = np.load('train_pseudo_idxs.npy')
 # val_idx = idxs[int((n_fold-1)*len(idxs)/(n_fold)):]
 
-train_ds = MelanomaDataset('data/folds.csv', train_idx, transforms=train_aug)
+train_ds = MelanomaDataset(train_df[train_df['fold'] != fold].image_id.values, train_df[train_df['fold'] != fold].target.values, transforms=train_aug)
 train_loader = DataLoader(train_ds,batch_size=batch_size, shuffle=True, num_workers=4)
 
-valid_ds = MelanomaDataset('data/folds.csv', val_idx, transforms=val_aug)
+valid_ds = MelanomaDataset(train_df[train_df['fold'] == fold].image_id.values, train_df[train_df['fold'] == fold].target.values, transforms=None)
 valid_loader = DataLoader(valid_ds, batch_size=batch_size, shuffle=True, num_workers=4)
 
 ## This function for train is copied from @hanjoonchoe
@@ -221,10 +220,9 @@ def evaluate(epoch,history):
         total += len(inputs)
         outputs = model(inputs.float())
         pred.extend(torch.softmax(outputs,1)[:,1].detach().cpu().numpy())
-        lab.extend(labels.cpu().numpy())        
+        lab.extend(torch.argmax(labels, 1).cpu().numpy())    
         loss = criterion(outputs,labels)
         running_loss += loss.item()
-
    msg = 'Loss: {:.4f} \n Auc: {:.4f} '.format(running_loss/(len(valid_loader)), roc_auc_score(lab, pred))
    print(msg)
    lr_reduce_scheduler.step(running_loss)
@@ -251,8 +249,8 @@ optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 # scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, learning_rate, total_steps=None, epochs=n_epochs, steps_per_epoch=3348, pct_start=0.0,
                                   #  anneal_strategy='cos', cycle_momentum=True,base_momentum=0.85, max_momentum=0.95,  div_factor=100.0)
 lr_reduce_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=patience, verbose=True, threshold=1e-4, threshold_mode='rel', cooldown=0, min_lr=1e-7, eps=1e-08)
-criterion = nn.CrossEntropyLoss()
-# criterion = LabelSmoothing() 
+# criterion = nn.CrossEntropyLoss()
+criterion = LabelSmoothing() 
 
 if load_model:
   tmp = torch.load(os.path.join(model_dir, model_name+'_loss.pth'))

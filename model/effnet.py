@@ -16,9 +16,9 @@ from torch.utils import model_zoo
 from .utils import *
 from efficientnet_pytorch import EfficientNet
 
-class EfficientNetWrapper(nn.Module):
+class EffNet(nn.Module):
     def __init__(self, pretrained_model='efficientnet-b4'):
-        super(EfficientNetWrapper, self).__init__()
+        super(EffNet, self).__init__()
         # Load imagenet pre-trained model 
         self.backbone = EfficientNet.from_pretrained(pretrained_model, in_channels=3).to('cuda:0')
         self.backbone._fc = nn.Linear(in_features=1408, out_features=2, bias=True)

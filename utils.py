@@ -175,7 +175,7 @@ def ohem_loss(rate, cls_pred, cls_target ):
     return cls_loss
 
 class LabelSmoothing(nn.Module):
-    def __init__(self, smoothing = 0.05):
+    def __init__(self, smoothing = 0.1):
         super(LabelSmoothing, self).__init__()
         self.confidence = 1.0 - smoothing
         self.smoothing = smoothing
@@ -183,13 +183,14 @@ class LabelSmoothing(nn.Module):
     def forward(self, x, target):
         if self.training:
             x = x.float()
-            one_hot = torch.zeros(x.size(0), 2)
-            one_hot[torch.arange(x.size(0)), target] = 1
-            one_hot = one_hot.float().cuda()
+            target = target.float()
             logprobs = torch.nn.functional.log_softmax(x, dim = -1)
-            nll_loss = -logprobs * one_hot
+
+            nll_loss = -logprobs * target
             nll_loss = nll_loss.sum(-1)
+    
             smooth_loss = -logprobs.mean(dim=-1)
+
             loss = self.confidence * nll_loss + self.smoothing * smooth_loss
 
             return loss.mean()

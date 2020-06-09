@@ -28,7 +28,7 @@ from optimizers import Over9000
 from augmentations.augmix import RandomAugMix
 from augmentations.gridmask import GridMask
 from model.seresnext import seresnext
-from model.effnet import EfficientNetWrapper
+from model.effnet import EffNet
 # from model.densenet import *
 ## This library is for augmentations .
 from albumentations import (
@@ -61,16 +61,16 @@ from albumentations import (
     Normalize, 
 )
 n_fold = 5
-fold = 1
+fold = 0
 SEED = 24
-batch_size = 48
+batch_size = 32
 sz = 256
 learning_rate = 5e-4
 patience = 5
 opts = ['normal', 'mixup', 'cutmix']
 device = 'cuda:0'
 apex = False
-pretrained_model = 'se_resnext50_32x4d'
+pretrained_model = 'efficientnet-b2'
 model_name = '{}_trial_stage1_fold_{}'.format(pretrained_model, fold)
 model_dir = 'model_dir'
 history_dir = 'history_dir'
@@ -88,10 +88,10 @@ os.makedirs(history_dir, exist_ok=True)
 
 test_aug = Compose([Normalize()])
 test_df = pd.read_csv('data/sample_submission.csv')
-model = seresnext(pretrained_model).to(device)
-# model = EfficientNetWrapper('efficientnet-b2').to(device)
+# model = seresnext(pretrained_model).to(device)
+model = EffNet('efficientnet-b2').to(device)
 
-test_ds = MelanomaDataset('data/sample_submission.csv', [i for i in range(len(test_df))], 'data/512x512-test/512x512-test', transforms=test_aug, phase='test')
+test_ds = MelanomaDataset(test_df.image_id.values, loc='data/512x512-test/512x512-test', transforms=None)
 test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=True, num_workers=4)
 
 ## This function for train is copied from @hanjoonchoe

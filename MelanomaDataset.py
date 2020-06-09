@@ -18,18 +18,22 @@ from utils import *
 import warnings
 warnings.filterwarnings('ignore')
 
+def onehot(size, target):
+    vec = torch.zeros(size, dtype=torch.float32)
+    vec[target] = 1.
+    return vec
+
 class MelanomaDataset(Dataset):
-    def __init__(self, csv_file, data_idxs, loc='data/512x512-dataset-melanoma/512x512-dataset-melanoma/', dim=256, transforms=None, phase='train'):
+    def __init__(self, image_ids, labels=None, loc='data/512x512-dataset-melanoma/512x512-dataset-melanoma/', dim=256, transforms=None):
         super().__init__()
-        self.df = pd.read_csv(csv_file)
-        self.data_idxs = data_idxs
+        self.image_ids = image_ids
+        self.labels = labels
         self.transforms = transforms
-        self.phase = phase
         self.dim = dim
         self.ROOT_PATH = loc
 
-    def __getitem__(self, idx: int):
-        image_id = self.df['image_id'][self.data_idxs[idx]]
+    def __getitem__(self, idx):
+        image_id = self.image_ids[idx]
         image = cv2.imread(f'{self.ROOT_PATH}/{image_id}.jpg', cv2.IMREAD_COLOR)
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         image = cv2.resize(image, (self.dim, self.dim))
@@ -41,12 +45,12 @@ class MelanomaDataset(Dataset):
         else:
             image = image.reshape(self.dim, self.dim, 3).transpose(2, 0, 1)
         
-        if self.phase != 'test':
-            target = self.df['target'][self.data_idxs[idx]]
-            return image, target
+        if self.labels is not None:
+            target = self.labels[idx]
+            return image, onehot(2, target)
         else:
             return image_id, image
 
     def __len__(self):
-        return len(self.data_idxs)
+        return len(self.image_ids)
 
