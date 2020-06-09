@@ -37,14 +37,13 @@ class MelanomaDataset(Dataset):
         image = cv2.imread(f'{self.ROOT_PATH}/{image_id}.jpg', cv2.IMREAD_COLOR)
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         image = cv2.resize(image, (self.dim, self.dim))
-        image = image.astype(np.float32) / 255.0
+        # image = image.astype(np.float32) / 255.0
         
         if self.transforms is not None:
             aug = self.transforms(image=image)
             image = aug['image'].reshape(self.dim, self.dim, 3).transpose(2, 0, 1)
         else:
             image = image.reshape(self.dim, self.dim, 3).transpose(2, 0, 1)
-        
         if self.labels is not None:
             target = self.labels[idx]
             return image, onehot(2, target)

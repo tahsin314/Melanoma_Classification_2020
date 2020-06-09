@@ -21,7 +21,7 @@ class EffNet(nn.Module):
         super(EffNet, self).__init__()
         # Load imagenet pre-trained model 
         self.backbone = EfficientNet.from_pretrained(pretrained_model, in_channels=3).to('cuda:0')
-        self.backbone._fc = nn.Linear(in_features=1408, out_features=2, bias=True)
+        self.backbone._fc = nn.Linear(in_features=1280, out_features=2, bias=True)
         
     def forward(self, x):
         x = self.backbone(x)

@@ -70,7 +70,7 @@ patience = 5
 opts = ['normal', 'mixup', 'cutmix']
 device = 'cuda:0'
 apex = False
-pretrained_model = 'efficientnet-b2'
+pretrained_model = 'efficientnet-b1'
 model_name = '{}_trial_stage1_fold_{}'.format(pretrained_model, fold)
 model_dir = 'model_dir'
 history_dir = 'history_dir'
@@ -89,9 +89,9 @@ os.makedirs(history_dir, exist_ok=True)
 test_aug = Compose([Normalize()])
 test_df = pd.read_csv('data/sample_submission.csv')
 # model = seresnext(pretrained_model).to(device)
-model = EffNet('efficientnet-b2').to(device)
+model = EffNet(pretrained_model).to(device)
 
-test_ds = MelanomaDataset(test_df.image_id.values, loc='data/512x512-test/512x512-test', transforms=None)
+test_ds = MelanomaDataset(test_df.image_id.values, loc='data/512x512-test/512x512-test', transforms=test_aug)
 test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=True, num_workers=4)
 
 ## This function for train is copied from @hanjoonchoe
@@ -110,8 +110,9 @@ def evaluate():
    return img_ids, preds
 
 if load_model:
-  tmp = torch.load(os.path.join(model_dir, model_name+'_loss.pth'))
+  tmp = torch.load(os.path.join(model_dir, model_name+'_auc.pth'))
   model.load_state_dict(tmp['model'])
+  print("Best AUC: {:4f}".format(tmp['best_auc']))
   del tmp
   print('Model Loaded!')
 

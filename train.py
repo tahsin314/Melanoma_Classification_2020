@@ -64,24 +64,23 @@ n_fold = 5
 fold = 0
 SEED = 24
 batch_size = 32
-sz = 384
-learning_rate = 5e-5
+sz = 256
+learning_rate = 3e-4
 patience = 5
 opts = ['normal', 'mixup', 'cutmix']
 device = 'cuda:0'
 apex = False
-pretrained_model = 'efficientnet-b4'
+pretrained_model = 'efficientnet-b1'
 model_name = '{}_trial_stage1_fold_{}'.format(pretrained_model, fold)
 model_dir = 'model_dir'
 history_dir = 'history_dir'
 imagenet_stats = ([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-load_model = True
+load_model = False
 history = pd.DataFrame()
 prev_epoch_num = 0
-n_epochs = 5
-valid_recall = 0.0
-best_valid_recall = 0.0
+n_epochs = 20
 best_valid_loss = np.inf
+best_valid_auc = 0.0
 np.random.seed(SEED)
 os.makedirs(model_dir, exist_ok=True)
 os.makedirs(history_dir, exist_ok=True)
@@ -100,16 +99,16 @@ train_aug =Compose([
     #     GridDistortion(distort_limit =0.05 ,border_mode=cv2.BORDER_CONSTANT,value =0, p=0.1),
     #     OpticalDistortion(p=0.1, distort_limit= 0.05, shift_limit=0.2,border_mode=cv2.BORDER_CONSTANT,value =0)                  
     #     ], p=0.3),
-    OneOf([
-        GaussNoise(var_limit=0.02),
-        # Blur(),
-        GaussianBlur(blur_limit=3),
-        RandomGamma(p=0.8),
-        ], p=0.5),
-    # Normalize()
+    # OneOf([
+    #     GaussNoise(var_limit=0.02),
+    #     # Blur(),
+    #     GaussianBlur(blur_limit=3),
+    #     RandomGamma(p=0.8),
+    #     ], p=0.5),
+    Normalize(always_apply=True)
     ]
       )
-val_aug = Compose([Normalize()])
+val_aug = Compose([Normalize(always_apply=True)])
 train_df = pd.read_csv('data/folds.csv')
 X, y = train_df['image_id'], train_df['target']
 # train_df['fold'] = np.nan
@@ -126,19 +125,10 @@ val_idx = []
 # model = seresnext(pretrained_model).to(device)
 model = EffNet(pretrained_model).to(device)
 
-# For stratified split
-# for i in T(range(len(train_df))):
-#     if train_df.iloc[i]['fold'] == fold: val_idx.append(i)
-#     else: train_idx.append(i)
-
-# train_idx = idxs[:int((n_fold-1)*len(idxs)/(n_fold))]
-# train_idx = np.load('train_pseudo_idxs.npy')
-# val_idx = idxs[int((n_fold-1)*len(idxs)/(n_fold)):]
-
-train_ds = MelanomaDataset(train_df[train_df['fold'] != fold].image_id.values, train_df[train_df['fold'] != fold].target.values, transforms=train_aug)
+train_ds = MelanomaDataset(train_df[train_df['fold'] != fold].image_id.values, train_df[train_df['fold'] != fold].target.values, dim=sz, transforms=train_aug)
 train_loader = DataLoader(train_ds,batch_size=batch_size, shuffle=True, num_workers=4)
 
-valid_ds = MelanomaDataset(train_df[train_df['fold'] == fold].image_id.values, train_df[train_df['fold'] == fold].target.values, transforms=None)
+valid_ds = MelanomaDataset(train_df[(train_df['fold'] == fold) & (train_df['source'] == 'ISIC20')].image_id.values, train_df[(train_df['fold'] == fold) & (train_df['source'] == 'ISIC20')].target.values, dim=sz, transforms=val_aug)
 valid_loader = DataLoader(valid_ds, batch_size=batch_size, shuffle=True, num_workers=4)
 
 ## This function for train is copied from @hanjoonchoe
@@ -164,7 +154,7 @@ def train(epoch,history):
     inputs = inputs.to(device)
     labels = labels.to(device)
     total += len(inputs)
-    choice = choices(opts, weights=[0.70, 0.15, 0.15])
+    choice = choices(opts, weights=[1.00, 0.0, 0.0])
     optimizer.zero_grad()
     if choice[0] == 'normal':
       outputs = model(inputs.float())
@@ -223,34 +213,22 @@ def evaluate(epoch,history):
         lab.extend(torch.argmax(labels, 1).cpu().numpy())    
         loss = criterion(outputs,labels)
         running_loss += loss.item()
-   msg = 'Loss: {:.4f} \n Auc: {:.4f} '.format(running_loss/(len(valid_loader)), roc_auc_score(lab, pred))
+   auc = roc_auc_score(lab, pred)
+   msg = 'Loss: {:.4f} \n Auc: {:.4f} '.format(running_loss/(len(valid_loader)), auc)
    print(msg)
    lr_reduce_scheduler.step(running_loss)
    history.loc[epoch, 'valid_loss'] = running_loss/(len(valid_loader))
    history.loc[epoch, 'valid_auc'] = roc_auc_score(lab, pred)
    history.to_csv(os.path.join(history_dir, 'history_{}.csv'.format(model_name)), index=False)
-   return  running_loss/(len(valid_loader))
+   return running_loss/(len(valid_loader)), auc
 
-# plist = [
-        # {'params': model.features.parameters(),  'lr': learning_rate/50},
-        # {'params': model.output.parameters(),  'lr': learning_rate},
-        # {'params': model.backbone.layer2.parameters(),  'lr': learning_rate/50},
-        # {'params': model.backbone.layer3.parameters(),  'lr': learning_rate/50},
-        # {'params': model.backbone.layer4.parameters(),  'lr': learning_rate/50}
-    # ]
-# plist = [
-#   {"params": model.head1.parameters(), "lr": learning_rate},
-#   {"params": model.head2.parameters(), "lr": learning_rate},
-#   {"params": model.head3.parameters(), "lr": learning_rate},
-#   # {"params": model.backbone.extract_features.parameters(), "lr": learning_rate/100}
-# ]
-# optimizer = Over9000(plist, lr=learning_rate, weight_decay=1e-3)
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 # scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, learning_rate, total_steps=None, epochs=n_epochs, steps_per_epoch=3348, pct_start=0.0,
                                   #  anneal_strategy='cos', cycle_momentum=True,base_momentum=0.85, max_momentum=0.95,  div_factor=100.0)
 lr_reduce_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=patience, verbose=True, threshold=1e-4, threshold_mode='rel', cooldown=0, min_lr=1e-7, eps=1e-08)
 # criterion = nn.CrossEntropyLoss()
-criterion = LabelSmoothing() 
+criterion = FocalLoss(logits=True).to(device)
+# criterion = LabelSmoothing() 
 
 if load_model:
   tmp = torch.load(os.path.join(model_dir, model_name+'_loss.pth'))
@@ -269,10 +247,16 @@ for epoch in range(prev_epoch_num, n_epochs):
     print(gc.collect())
     # stdscr = curses.initscr()
     train(epoch,history)
-    valid_loss = evaluate(epoch,history)
+    valid_loss, valid_auc = evaluate(epoch,history)
     if valid_loss<best_valid_loss:
         print(f'Validation loss has decreased from:  {best_valid_loss:.4f} to: {valid_loss:.4f}. Saving checkpoint')
         best_state = {'model': model.state_dict(), 'optim': optimizer.state_dict(), 'scheduler': lr_reduce_scheduler.state_dict(), 'best_loss':valid_loss, 'epoch':epoch}
         torch.save(best_state, os.path.join(model_dir, model_name+'_loss.pth'))
         torch.save(model.state_dict(), os.path.join(model_dir, '{}_model_weights_best_loss.pth'.format(model_name))) ## Saving model weights based on best validation accuracy.
-        best_valid_loss = valid_loss 
+        best_valid_loss = valid_loss
+    if valid_auc>best_valid_auc:
+        print(f'Validation auc has iccreased from:  {best_valid_auc:.4f} to: {valid_auc:.4f}. Saving checkpoint')
+        best_state = {'model': model.state_dict(), 'optim': optimizer.state_dict(), 'scheduler': lr_reduce_scheduler.state_dict(), 'best_auc':valid_auc, 'epoch':epoch}
+        torch.save(best_state, os.path.join(model_dir, model_name+'_auc.pth'))
+        torch.save(model.state_dict(), os.path.join(model_dir, '{}_model_weights_best_auc.pth'.format(model_name))) ## Saving model weights based on best validation accuracy.
+        best_valid_auc = valid_auc 
