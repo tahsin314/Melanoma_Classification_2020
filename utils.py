@@ -75,29 +75,15 @@ def mixup(data, targets, alpha):
     lam = np.random.beta(alpha, alpha)
     data = data * lam + shuffled_data * (1 - lam)
     targets = [targets, shuffled_targets, lam]
-
     return data, targets
 
-def cutmix_criterion(preds, targets, criterion='ohem', rate=0.7):
+def cutmix_criterion(preds, targets, criterion, rate=0.7):
     targets1, targets2, lam = targets[0], targets[1], targets[2]
-    if criterion=='ohem':
-        criterion = ohem_loss
-    elif criterion=='smooth':
-        criterion = LabelSmoothing()
-    else:
-        criterion = nn.CrossEntropyLoss(reduction='mean')
     return lam * criterion(preds, targets1) + (1 - lam) * criterion(preds, targets2)
 
-def mixup_criterion(preds, targets, criterion='ohem', rate=0.7):
+def mixup_criterion(preds, targets, criterion, rate=0.7):
     targets1, targets2, lam = targets[0], targets[1], targets[2]
-    if criterion=='ohem':
-        criterion = ohem_loss
-    elif criterion=='smooth':
-        criterion = LabelSmoothing()
-    else:
-        criterion = nn.CrossEntropyLoss(reduction='mean')
     return lam * criterion(preds, targets1) + (1 - lam) * criterion(preds, targets2)
-
 
 class RandomErasing:
     def __init__(self, p, area_ratio_range, min_aspect_ratio, max_attempt):
@@ -167,10 +153,10 @@ class FocalLoss(nn.Module):
         else:
             return F_loss
 
-def ohem_loss(rate, cls_pred, cls_target ):
+def ohem_loss(rate, base_crit, cls_pred, cls_target ):
 
     batch_size = cls_pred.size(0) 
-    ohem_cls_loss = F.cross_entropy(cls_pred, cls_target, reduction='none', ignore_index=-1)
+    ohem_cls_loss = base_crit(cls_pred, cls_target, reduction='none', ignore_index=-1)
 
     sorted_ohem_loss, idx = torch.sort(ohem_cls_loss, descending=True)
     keep_num = min(sorted_ohem_loss.size()[0], int(batch_size*rate) )
