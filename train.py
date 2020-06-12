@@ -22,6 +22,7 @@ from torch import optim
 from torch.nn import functional as F
 from torch.utils.data import Dataset,DataLoader
 from MelanomaDataset import MelanomaDataset
+from catalyst.data.sampler import BalanceClassSampler
 from utils import *
 from optimizers import Over9000
 from augmentations.augmix import RandomAugMix
@@ -62,16 +63,16 @@ from albumentations import (
     Normalize, 
 )
 n_fold = 5
-fold = 1
+fold = 0
 SEED = 24
 batch_size = 50
-sz = 320
+sz = 256
 learning_rate = 5e-4
 patience = 3
 opts = ['normal', 'mixup', 'cutmix']
 device = 'cuda:0'
-apex = True
-pretrained_model = 'efficientnet-b3'
+apex = False
+pretrained_model = 'efficientnet-b1'
 model_name = '{}_trial_stage1_fold_{}'.format(pretrained_model, fold)
 model_dir = 'model_dir'
 history_dir = 'history_dir'
@@ -130,7 +131,7 @@ valid_df = df[(df['fold'] == fold) & (df['source'] == 'ISIC20')]
 model = EffNet(pretrained_model).to(device)
 
 train_ds = MelanomaDataset(train_df.image_id.values, train_df.target.values, dim=sz, transforms=train_aug)
-train_loader = DataLoader(train_ds,batch_size=batch_size, shuffle=True, num_workers=4)
+train_loader = DataLoader(train_ds,batch_size=batch_size, sampler=BalanceClassSampler(labels=train_ds.get_labels(), mode="upsampling"), shuffle=False, num_workers=4)
 
 valid_ds = MelanomaDataset(valid_df.image_id.values, valid_df.target.values, dim=sz, transforms=val_aug)
 valid_loader = DataLoader(valid_ds, batch_size=batch_size, shuffle=True, num_workers=4)
@@ -162,20 +163,19 @@ def train(epoch,history):
     optimizer.zero_grad()
     if choice[0] == 'normal':
       outputs = model(inputs.float())
-      loss = criterion(outputs,labels).mean()
       loss = ohem_loss(rate, criterion, outputs, labels)
       running_loss += loss.item()
     
     elif choice[0] == 'mixup':
       inputs, targets = mixup(inputs, labels, np.random.uniform(0.8, 1.0))
       outputs = model(inputs.float())
-      loss = mixup_criterion(outputs, targets, criterion=criterion, rate=rate).mean()
+      loss = mixup_criterion(outputs, targets, criterion=criterion, rate=rate)
       running_loss += loss.item()
     
     elif choice[0] == 'cutmix':
       inputs, targets = cutmix(inputs, labels, np.random.uniform(0.8, 1.0))
       outputs = model(inputs.float())
-      loss = cutmix_criterion(outputs, targets, criterion=criterion, rate=rate).mean()
+      loss = cutmix_criterion(outputs, targets, criterion=criterion, rate=rate)
       running_loss += loss.item()
     if apex:
         with amp.scale_loss(loss, optimizer) as scaled_loss:

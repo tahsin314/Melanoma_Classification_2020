@@ -53,3 +53,5 @@ class MelanomaDataset(Dataset):
     def __len__(self):
         return len(self.image_ids)
 
+    def get_labels(self):
+        return list(self.labels)
