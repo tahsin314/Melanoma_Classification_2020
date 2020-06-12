@@ -23,7 +23,6 @@ from torch.nn import functional as F
 from torch.utils.data import Dataset,DataLoader
 from MelanomaDataset import MelanomaDataset
 from utils import *
-from metrics import *
 from optimizers import Over9000
 from augmentations.augmix import RandomAugMix
 from augmentations.gridmask import GridMask
@@ -63,24 +62,24 @@ from albumentations import (
     Normalize, 
 )
 n_fold = 5
-fold = 0
+fold = 1
 SEED = 24
-batch_size = 32
-sz = 256
-learning_rate = 3e-4
-patience = 5
+batch_size = 50
+sz = 320
+learning_rate = 5e-4
+patience = 3
 opts = ['normal', 'mixup', 'cutmix']
 device = 'cuda:0'
-apex = False
-pretrained_model = 'efficientnet-b1'
+apex = True
+pretrained_model = 'efficientnet-b3'
 model_name = '{}_trial_stage1_fold_{}'.format(pretrained_model, fold)
 model_dir = 'model_dir'
 history_dir = 'history_dir'
 imagenet_stats = ([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-load_model = False
+load_model = True
 history = pd.DataFrame()
 prev_epoch_num = 0
-n_epochs = 20
+n_epochs = 40
 best_valid_loss = np.inf
 best_valid_auc = 0.0
 np.random.seed(SEED)
@@ -151,10 +150,10 @@ def train(epoch,history):
   
   if epoch<10:
     rate = 1
-  elif epoch>=10 and rate>0.65:
-    rate = np.exp(-(epoch-30)/60)
+  elif epoch>=10 and rate>0.60:
+    rate = np.exp(-(epoch-10)/30)
   else:
-    rate = 0.65
+    rate = 0.60
   for idx, (inputs,labels) in enumerate(train_loader):
     inputs = inputs.to(device)
     labels = labels.to(device)
@@ -163,19 +162,20 @@ def train(epoch,history):
     optimizer.zero_grad()
     if choice[0] == 'normal':
       outputs = model(inputs.float())
-      loss = criterion(outputs,labels)
+      loss = criterion(outputs,labels).mean()
+      loss = ohem_loss(rate, criterion, outputs, labels)
       running_loss += loss.item()
     
     elif choice[0] == 'mixup':
       inputs, targets = mixup(inputs, labels, np.random.uniform(0.8, 1.0))
       outputs = model(inputs.float())
-      loss = mixup_criterion(outputs, targets, criterion=criterion, rate=rate)
+      loss = mixup_criterion(outputs, targets, criterion=criterion, rate=rate).mean()
       running_loss += loss.item()
     
     elif choice[0] == 'cutmix':
       inputs, targets = cutmix(inputs, labels, np.random.uniform(0.8, 1.0))
       outputs = model(inputs.float())
-      loss = cutmix_criterion(outputs, targets, criterion=criterion, rate=rate)
+      loss = cutmix_criterion(outputs, targets, criterion=criterion, rate=rate).mean()
       running_loss += loss.item()
     if apex:
         with amp.scale_loss(loss, optimizer) as scaled_loss:
@@ -216,7 +216,7 @@ def evaluate(epoch,history):
         outputs = model(inputs.float())
         pred.extend(torch.softmax(outputs,1)[:,1].detach().cpu().numpy())
         lab.extend(torch.argmax(labels, 1).cpu().numpy())    
-        loss = criterion(outputs,labels)
+        loss = criterion(outputs,labels).mean()
         running_loss += loss.item()
    auc = roc_auc_score(lab, pred)
    msg = 'Loss: {:.4f} \n Auc: {:.4f} '.format(running_loss/(len(valid_loader)), auc)
@@ -234,6 +234,7 @@ lr_reduce_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode
 # criterion = nn.CrossEntropyLoss()
 # criterion = FocalLoss(logits=True).to(device)
 criterion = LabelSmoothing().to(device) 
+criterion = criterion_margin_focal_binary_cross_entropy
 
 if load_model:
   tmp = torch.load(os.path.join(model_dir, model_name+'_loss.pth'))
@@ -241,6 +242,7 @@ if load_model:
   optimizer.load_state_dict(tmp['optim'])
   prev_epoch_num = tmp['epoch']
   best_valid_loss = tmp['best_loss']
+  evaluate(-1,history)
   del tmp
   print('Model Loaded!')
 

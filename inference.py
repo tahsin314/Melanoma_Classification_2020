@@ -61,16 +61,16 @@ from albumentations import (
     Normalize, 
 )
 n_fold = 5
-fold = 0
+fold = 1
 SEED = 24
 batch_size = 32
-sz = 256
+sz = 320
 learning_rate = 5e-4
 patience = 5
 opts = ['normal', 'mixup', 'cutmix']
 device = 'cuda:0'
-apex = False
-pretrained_model = 'efficientnet-b1'
+apex = True
+pretrained_model = 'efficientnet-b3'
 model_name = '{}_trial_stage1_fold_{}'.format(pretrained_model, fold)
 model_dir = 'model_dir'
 history_dir = 'history_dir'
@@ -110,14 +110,14 @@ def evaluate():
    return img_ids, preds
 
 if load_model:
-  tmp = torch.load(os.path.join(model_dir, model_name+'_auc.pth'))
+  tmp = torch.load(os.path.join(model_dir, model_name+'_loss.pth'))
   model.load_state_dict(tmp['model'])
-  print("Best AUC: {:4f}".format(tmp['best_auc']))
+  print("Best Loss: {:4f}".format(tmp['best_loss']))
   del tmp
   print('Model Loaded!')
 
 if apex:
-    amp.initialize(model, optimizer, opt_level='O1')
+    amp.initialize(model, opt_level='O1')
 
 IMG_IDS, TARGET_PRED = evaluate()
 zippedList =  list(zip(IMG_IDS, TARGET_PRED))

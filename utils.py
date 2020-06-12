@@ -79,11 +79,13 @@ def mixup(data, targets, alpha):
 
 def cutmix_criterion(preds, targets, criterion, rate=0.7):
     targets1, targets2, lam = targets[0], targets[1], targets[2]
-    return lam * criterion(preds, targets1) + (1 - lam) * criterion(preds, targets2)
+    return lam * ohem_loss(rate, criterion, preds, targets1) + (1 - lam) * ohem_loss(rate, criterion, preds, targets2)
+    # return lam * criterion(preds, targets1) + (1 - lam) * criterion(preds, targets2)
 
 def mixup_criterion(preds, targets, criterion, rate=0.7):
     targets1, targets2, lam = targets[0], targets[1], targets[2]
-    return lam * criterion(preds, targets1) + (1 - lam) * criterion(preds, targets2)
+    return lam * ohem_loss(rate, criterion, preds, targets1) + (1 - lam) * ohem_loss(rate, criterion, preds, targets2)
+    # return lam * criterion(preds, targets1) + (1 - lam) * criterion(preds, targets2)
 
 class RandomErasing:
     def __init__(self, p, area_ratio_range, min_aspect_ratio, max_attempt):
@@ -153,13 +155,14 @@ class FocalLoss(nn.Module):
         else:
             return F_loss
 
-def ohem_loss(rate, base_crit, cls_pred, cls_target ):
+def ohem_loss(rate, base_crit, cls_pred, cls_target):
 
     batch_size = cls_pred.size(0) 
-    ohem_cls_loss = base_crit(cls_pred, cls_target, reduction='none', ignore_index=-1)
-
+    # ohem_cls_loss = base_crit(cls_pred, cls_target, reduction='none', ignore_index=-1)
+    ohem_cls_loss = base_crit(cls_pred, cls_target)
+    # print(ohem_cls_loss.size())
     sorted_ohem_loss, idx = torch.sort(ohem_cls_loss, descending=True)
-    keep_num = min(sorted_ohem_loss.size()[0], int(batch_size*rate) )
+    keep_num = min((sorted_ohem_loss.size())[0], int(batch_size*rate))
     if keep_num < sorted_ohem_loss.size()[0]:
         keep_idx_cuda = idx[:keep_num]
         ohem_cls_loss = ohem_cls_loss[keep_idx_cuda]
@@ -188,3 +191,26 @@ class LabelSmoothing(nn.Module):
             return loss.mean()
         else:
             return torch.nn.functional.cross_entropy(x, target)
+
+# Courtesy: https://www.kaggle.com/c/siim-isic-melanoma-classification/discussion/155201
+def criterion_margin_focal_binary_cross_entropy(logit, truth):
+    weight_pos=2
+    weight_neg=1
+    gamma=2
+    margin=0.2
+    em = np.exp(margin)
+
+    logit = logit.view(-1)
+    truth = truth.view(-1)
+    log_pos = -F.logsigmoid( logit)
+    log_neg = -F.logsigmoid(-logit)
+
+    log_prob = truth*log_pos + (1-truth)*log_neg
+    prob = torch.exp(-log_prob)
+    margin = torch.log(em +(1-em)*prob)
+
+    weight = truth*weight_pos + (1-truth)*weight_neg
+    loss = margin + weight*(1 - prob) ** gamma * log_prob
+
+    # loss = loss.mean()
+    return loss
