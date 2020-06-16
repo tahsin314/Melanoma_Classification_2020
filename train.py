@@ -240,11 +240,12 @@ def evaluate(epoch,history):
    pred = []
    lab = []
    with torch.no_grad():
-     for idx, (inputs,labels) in T(enumerate(valid_loader),total=len(valid_loader)):
+     for idx, (inputs,meta,labels) in T(enumerate(valid_loader),total=len(valid_loader)):
         inputs = inputs.to(device)
+        meta = meta.to(device)
         labels = labels.to(device)
         total += len(inputs)
-        outputs = model(inputs.float())
+        outputs = model(inputs.float(), meta)
         pred.extend(torch.softmax(outputs,1)[:,1].detach().cpu().numpy())
         lab.extend(torch.argmax(labels, 1).cpu().numpy())    
         loss = criterion(outputs,labels).mean()
