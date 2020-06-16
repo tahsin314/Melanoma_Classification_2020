@@ -160,7 +160,8 @@ def ohem_loss(rate, base_crit, cls_pred, cls_target):
     batch_size = cls_pred.size(0) 
     # ohem_cls_loss = base_crit(cls_pred, cls_target, reduction='none', ignore_index=-1)
     ohem_cls_loss = base_crit(cls_pred, cls_target)
-    # print(ohem_cls_loss.size())
+    if rate==1:
+        return ohem_cls_loss
     sorted_ohem_loss, idx = torch.sort(ohem_cls_loss, descending=True)
     keep_num = min((sorted_ohem_loss.size())[0], int(batch_size*rate))
     if keep_num < sorted_ohem_loss.size()[0]:
@@ -188,7 +189,7 @@ class LabelSmoothing(nn.Module):
 
             loss = self.confidence * nll_loss + self.smoothing * smooth_loss
 
-            return loss.mean()
+            return loss
         else:
             return torch.nn.functional.cross_entropy(x, target)
 

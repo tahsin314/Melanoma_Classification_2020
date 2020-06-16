@@ -1,6 +1,8 @@
 import os
 import shutil
 import sys
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning)
 import threading
 import curses 
 import gc
@@ -60,29 +62,31 @@ from albumentations import (
     Blur,
     MotionBlur,   
     GaussianBlur,
+    HueSaturationValue,
     Normalize, 
 )
 n_fold = 5
 fold = 0
 SEED = 24
 batch_size = 50
-sz = 256
+sz = 384
 learning_rate = 5e-4
-patience = 3
+patience = 4
 opts = ['normal', 'mixup', 'cutmix']
 device = 'cuda:0'
-apex = False
-pretrained_model = 'efficientnet-b1'
+apex = True
+pretrained_model = 'efficientnet-b3'
 model_name = '{}_trial_stage1_fold_{}'.format(pretrained_model, fold)
 model_dir = 'model_dir'
 history_dir = 'history_dir'
 imagenet_stats = ([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-load_model = True
+load_model = False
 history = pd.DataFrame()
 prev_epoch_num = 0
 n_epochs = 40
 best_valid_loss = np.inf
 best_valid_auc = 0.0
+balanced_sampler = False
 np.random.seed(SEED)
 os.makedirs(model_dir, exist_ok=True)
 os.makedirs(history_dir, exist_ok=True)
@@ -94,7 +98,7 @@ train_aug =Compose([
     # GridMask(num_grid=7, p=0.7, fill_value=0)
     ], p=0.20),
     RandomSizedCrop(min_max_height=(int(sz*0.8), int(sz*0.8)), height=sz, width=sz, p=0.5),
-    RandomAugMix(severity=1, width=1, alpha=1., p=0.3),
+    # RandomAugMix(severity=1, width=1, alpha=1., p=0.3),
     # OneOf([
     #     ElasticTransform(p=0.1, alpha=1, sigma=50, alpha_affine=30,border_mode=cv2.BORDER_CONSTANT,value =0),
     #     GridDistortion(distort_limit =0.05 ,border_mode=cv2.BORDER_CONSTANT,value =0, p=0.1),
@@ -106,6 +110,7 @@ train_aug =Compose([
     #     GaussianBlur(blur_limit=3),
     #     RandomGamma(p=0.8),
     #     ], p=0.5),
+    HueSaturationValue(p=0.4),
     HorizontalFlip(0.4),
     VerticalFlip(0.4),
     Normalize(always_apply=True)
@@ -116,6 +121,25 @@ df = pd.read_csv('data/folds.csv')
 X, y = df['image_id'], df['target']
 # train_df['fold'] = np.nan
 df= df.sample(frac=1, random_state=SEED).reset_index(drop=True)
+
+'''
+Meta features: https://www.kaggle.com/nroman/melanoma-pytorch-starter-efficientnet
+'''
+# One-hot encoding of anatom_site_general_challenge feature
+concat = df['anatom_site_general_challenge']
+dummies = pd.get_dummies(concat, dummy_na=True, dtype=np.uint8, prefix='site')
+df = pd.concat([df, dummies.iloc[:df.shape[0]]], axis=1)
+
+# Sex features
+df['sex'] = df['sex'].map({'male': 1, 'female': 0})
+df['sex'] = df['sex'].fillna(-1)
+
+# Age features
+df['age_approx'] /= df['age_approx'].max()
+df['age_approx'] = df['age_approx'].fillna(0)
+df['patient_id'] = df['patient_id'].fillna(0)
+meta_features = ['sex', 'age_approx'] + [col for col in df.columns if 'site_' in col]
+meta_features.remove('anatom_site_general_challenge')
 #split data
 # mskf = StratifiedKFold(n_splits=n_fold, shuffle=True, random_state=SEED)
 # for i, (_, test_index) in enumerate(mskf.split(X, y)):
@@ -127,13 +151,19 @@ train_idx = []
 val_idx = []
 train_df = df[df['fold'] != fold]
 valid_df = df[(df['fold'] == fold) & (df['source'] == 'ISIC20')]
+train_meta = np.array(train_df[meta_features].values, dtype=np.float32)
+valid_meta = np.array(valid_df[meta_features].values, dtype=np.float32)
 # model = seresnext(pretrained_model).to(device)
-model = EffNet(pretrained_model).to(device)
+model = EffNet(pretrained_model=pretrained_model, n_meta_features=train_meta.shape[1]).to(device)
 
-train_ds = MelanomaDataset(train_df.image_id.values, train_df.target.values, dim=sz, transforms=train_aug)
-train_loader = DataLoader(train_ds,batch_size=batch_size, sampler=BalanceClassSampler(labels=train_ds.get_labels(), mode="upsampling"), shuffle=False, num_workers=4)
+train_ds = MelanomaDataset(train_df.image_id.values, train_meta, train_df.target.values, dim=sz, transforms=train_aug)
+if balanced_sampler:
+  print('Using Balanced Sampler....')
+  train_loader = DataLoader(train_ds,batch_size=batch_size, sampler=BalanceClassSampler(labels=train_ds.get_labels(), mode="downsampling"), shuffle=False, num_workers=4)
+else:
+  train_loader = DataLoader(train_ds,batch_size=batch_size, shuffle=True, num_workers=4)
 
-valid_ds = MelanomaDataset(valid_df.image_id.values, valid_df.target.values, dim=sz, transforms=val_aug)
+valid_ds = MelanomaDataset(valid_df.image_id.values, valid_meta, valid_df.target.values, dim=sz, transforms=val_aug)
 valid_loader = DataLoader(valid_ds, batch_size=batch_size, shuffle=True, num_workers=4)
 
 ## This function for train is copied from @hanjoonchoe
@@ -149,20 +179,21 @@ def train(epoch,history):
   running_loss = 0.0
   rate = 1
   
-  if epoch<10:
-    rate = 1
-  elif epoch>=10 and rate>0.60:
-    rate = np.exp(-(epoch-10)/30)
-  else:
-    rate = 0.60
-  for idx, (inputs,labels) in enumerate(train_loader):
+  # if epoch<10:
+  #   rate = 1
+  # elif epoch>=10 and rate>0.60:
+  #   rate = np.exp(-(epoch-10)/30)
+  # else:
+  #   rate = 0.60
+  for idx, (inputs,meta,labels) in enumerate(train_loader):
     inputs = inputs.to(device)
+    meta = meta.to(device)
     labels = labels.to(device)
     total += len(inputs)
-    choice = choices(opts, weights=[0.70, 0.15, 0.15])
+    choice = choices(opts, weights=[1.00, 0.0, 0.0])
     optimizer.zero_grad()
     if choice[0] == 'normal':
-      outputs = model(inputs.float())
+      outputs = model(inputs.float(), meta)
       loss = ohem_loss(rate, criterion, outputs, labels)
       running_loss += loss.item()
     
@@ -231,10 +262,10 @@ optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 # scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, learning_rate, total_steps=None, epochs=n_epochs, steps_per_epoch=3348, pct_start=0.0,
                                   #  anneal_strategy='cos', cycle_momentum=True,base_momentum=0.85, max_momentum=0.95,  div_factor=100.0)
 lr_reduce_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=patience, verbose=True, threshold=1e-4, threshold_mode='rel', cooldown=0, min_lr=1e-7, eps=1e-08)
-# criterion = nn.CrossEntropyLoss()
+criterion = nn.BCEWithLogitsLoss()
 # criterion = FocalLoss(logits=True).to(device)
-criterion = LabelSmoothing().to(device) 
-criterion = criterion_margin_focal_binary_cross_entropy
+# criterion = LabelSmoothing().to(device) 
+# criterion = criterion_margin_focal_binary_cross_entropy
 
 if load_model:
   tmp = torch.load(os.path.join(model_dir, model_name+'_loss.pth'))
@@ -262,7 +293,7 @@ for epoch in range(prev_epoch_num, n_epochs):
         torch.save(model.state_dict(), os.path.join(model_dir, '{}_model_weights_best_loss.pth'.format(model_name))) ## Saving model weights based on best validation accuracy.
         best_valid_loss = valid_loss
     if valid_auc>best_valid_auc:
-        print(f'Validation auc has iccreased from:  {best_valid_auc:.4f} to: {valid_auc:.4f}. Saving checkpoint')
+        print(f'Validation auc has increased from:  {best_valid_auc:.4f} to: {valid_auc:.4f}. Saving checkpoint')
         best_state = {'model': model.state_dict(), 'optim': optimizer.state_dict(), 'scheduler': lr_reduce_scheduler.state_dict(), 'best_auc':valid_auc, 'epoch':epoch}
         torch.save(best_state, os.path.join(model_dir, model_name+'_auc.pth'))
         torch.save(model.state_dict(), os.path.join(model_dir, '{}_model_weights_best_auc.pth'.format(model_name))) ## Saving model weights based on best validation accuracy.

@@ -24,13 +24,14 @@ def onehot(size, target):
     return vec
 
 class MelanomaDataset(Dataset):
-    def __init__(self, image_ids, labels=None, loc='data/512x512-dataset-melanoma/512x512-dataset-melanoma/', dim=256, transforms=None):
+    def __init__(self, image_ids, meta_features=None, labels=None, loc='data/512x512-dataset-melanoma/512x512-dataset-melanoma/', dim=256, transforms=None):
         super().__init__()
         self.image_ids = image_ids
         self.labels = labels
         self.transforms = transforms
         self.dim = dim
         self.ROOT_PATH = loc
+        self.meta_features = meta_features
 
     def __getitem__(self, idx):
         image_id = self.image_ids[idx]
@@ -46,9 +47,9 @@ class MelanomaDataset(Dataset):
             image = image.reshape(self.dim, self.dim, 3).transpose(2, 0, 1)
         if self.labels is not None:
             target = self.labels[idx]
-            return image, onehot(2, target)
+            return image, self.meta_features[idx], onehot(2, target)
         else:
-            return image_id, image
+            return image_id, image, self.meta_features[idx]
 
     def __len__(self):
         return len(self.image_ids)

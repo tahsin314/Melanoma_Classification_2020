@@ -23,7 +23,6 @@ from torch.nn import functional as F
 from torch.utils.data import Dataset,DataLoader
 from MelanomaDataset import MelanomaDataset
 from utils import *
-from metrics import *
 from optimizers import Over9000
 from augmentations.augmix import RandomAugMix
 from augmentations.gridmask import GridMask
@@ -61,16 +60,16 @@ from albumentations import (
     Normalize, 
 )
 n_fold = 5
-fold = 1
+fold = 0
 SEED = 24
 batch_size = 32
-sz = 320
+sz = 256
 learning_rate = 5e-4
 patience = 5
 opts = ['normal', 'mixup', 'cutmix']
 device = 'cuda:0'
 apex = True
-pretrained_model = 'efficientnet-b3'
+pretrained_model = 'efficientnet-b1'
 model_name = '{}_trial_stage1_fold_{}'.format(pretrained_model, fold)
 model_dir = 'model_dir'
 history_dir = 'history_dir'
@@ -78,7 +77,6 @@ imagenet_stats = ([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 load_model = True
 history = pd.DataFrame()
 prev_epoch_num = 0
-n_epochs = 3
 valid_recall = 0.0
 best_valid_recall = 0.0
 best_valid_loss = np.inf
@@ -110,9 +108,9 @@ def evaluate():
    return img_ids, preds
 
 if load_model:
-  tmp = torch.load(os.path.join(model_dir, model_name+'_loss.pth'))
+  tmp = torch.load(os.path.join(model_dir, model_name+'_auc.pth'))
   model.load_state_dict(tmp['model'])
-  print("Best Loss: {:4f}".format(tmp['best_loss']))
+  print("Best Loss: {:4f}".format(tmp['best_auc']))
   del tmp
   print('Model Loaded!')
 
