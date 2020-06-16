@@ -154,6 +154,7 @@ valid_df = df[(df['fold'] == fold) & (df['source'] == 'ISIC20')]
 train_meta = np.array(train_df[meta_features].values, dtype=np.float32)
 valid_meta = np.array(valid_df[meta_features].values, dtype=np.float32)
 # model = seresnext(pretrained_model).to(device)
+print(meta_features)
 model = EffNet(pretrained_model=pretrained_model, n_meta_features=train_meta.shape[1]).to(device)
 
 train_ds = MelanomaDataset(train_df.image_id.values, train_meta, train_df.target.values, dim=sz, transforms=train_aug)
@@ -199,13 +200,13 @@ def train(epoch,history):
     
     elif choice[0] == 'mixup':
       inputs, targets = mixup(inputs, labels, np.random.uniform(0.8, 1.0))
-      outputs = model(inputs.float())
+      outputs = model(inputs.float(), meta)
       loss = mixup_criterion(outputs, targets, criterion=criterion, rate=rate)
       running_loss += loss.item()
     
     elif choice[0] == 'cutmix':
       inputs, targets = cutmix(inputs, labels, np.random.uniform(0.8, 1.0))
-      outputs = model(inputs.float())
+      outputs = model(inputs.float(), meta)
       loss = cutmix_criterion(outputs, targets, criterion=criterion, rate=rate)
       running_loss += loss.item()
     if apex:

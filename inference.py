@@ -47,6 +47,8 @@ from albumentations import (
     RandomSizedCrop,
     Resize,
     CenterCrop,
+    VerticalFlip,
+    HorizontalFlip,
     OneOf,
     CLAHE,
     RandomBrightnessContrast,    
@@ -57,19 +59,20 @@ from albumentations import (
     Blur,
     MotionBlur,   
     GaussianBlur,
+    HueSaturationValue,
     Normalize, 
 )
 n_fold = 5
 fold = 0
 SEED = 24
 batch_size = 32
-sz = 256
+sz = 384
 learning_rate = 5e-4
 patience = 5
 opts = ['normal', 'mixup', 'cutmix']
 device = 'cuda:0'
 apex = True
-pretrained_model = 'efficientnet-b1'
+pretrained_model = 'efficientnet-b3'
 model_name = '{}_trial_stage1_fold_{}'.format(pretrained_model, fold)
 model_dir = 'model_dir'
 history_dir = 'history_dir'
@@ -80,32 +83,92 @@ prev_epoch_num = 0
 valid_recall = 0.0
 best_valid_recall = 0.0
 best_valid_loss = np.inf
+TTA = 4
 np.random.seed(SEED)
 os.makedirs(model_dir, exist_ok=True)
 os.makedirs(history_dir, exist_ok=True)
 
 test_aug = Compose([Normalize()])
-test_df = pd.read_csv('data/sample_submission.csv')
-# model = seresnext(pretrained_model).to(device)
-model = EffNet(pretrained_model).to(device)
+tta_aug =Compose([
+  ShiftScaleRotate(p=0.9,rotate_limit=180, border_mode= cv2.BORDER_REFLECT, value=[0, 0, 0], scale_limit=0.25),
+    OneOf([
+    Cutout(p=0.3, max_h_size=sz//16, max_w_size=sz//16, num_holes=10, fill_value=0),
+    # GridMask(num_grid=7, p=0.7, fill_value=0)
+    ], p=0.20),
+    RandomSizedCrop(min_max_height=(int(sz*0.8), int(sz*0.8)), height=sz, width=sz, p=0.5),
+    # RandomAugMix(severity=1, width=1, alpha=1., p=0.3),
+    # OneOf([
+    #     ElasticTransform(p=0.1, alpha=1, sigma=50, alpha_affine=30,border_mode=cv2.BORDER_CONSTANT,value =0),
+    #     GridDistortion(distort_limit =0.05 ,border_mode=cv2.BORDER_CONSTANT,value =0, p=0.1),
+    #     OpticalDistortion(p=0.1, distort_limit= 0.05, shift_limit=0.2,border_mode=cv2.BORDER_CONSTANT,value =0)                  
+    #     ], p=0.3),
+    # OneOf([
+    #     GaussNoise(var_limit=0.02),
+    #     # Blur(),
+    #     GaussianBlur(blur_limit=3),
+    #     RandomGamma(p=0.8),
+    #     ], p=0.5),
+    HueSaturationValue(p=0.4),
+    HorizontalFlip(0.4),
+    VerticalFlip(0.4),
+    Normalize(always_apply=True)
+    ]
+      )
+df = pd.read_csv('data/train.csv')      
+test_df = pd.read_csv('data/test.csv')
+test_df= test_df.sample(frac=1, random_state=SEED).reset_index(drop=True)
 
-test_ds = MelanomaDataset(test_df.image_id.values, loc='data/512x512-test/512x512-test', transforms=test_aug)
+'''
+Meta features: https://www.kaggle.com/nroman/melanoma-pytorch-starter-efficientnet
+'''
+# One-hot encoding of anatom_site_general_challenge feature
+concat = test_df['anatom_site_general_challenge']
+dummies = pd.get_dummies(concat, dummy_na=True, dtype=np.uint8, prefix='site')
+test_df = pd.concat([test_df, dummies.iloc[:test_df.shape[0]]], axis=1)
+
+# Sex features
+test_df['sex'] = test_df['sex'].map({'male': 1, 'female': 0})
+test_df['sex'] = test_df['sex'].fillna(-1)
+
+# Age features
+test_df['age_approx'] /= test_df['age_approx'].max()
+test_df['age_approx'] = test_df['age_approx'].fillna(0)
+test_df['patient_id'] = test_df['patient_id'].fillna(0)
+test_df['site_lateral torso'] = np.nan
+test_df['site_unknown'] = np.nan
+test_df['site_lateral torso'] = test_df['site_lateral torso'].fillna(0)
+test_df['site_unknown'] = test_df['site_unknown'].fillna(0)
+
+meta_features = ['sex', 'age_approx'] + [col for col in test_df.columns if 'site_' in col]
+meta_features.remove('anatom_site_general_challenge')
+meta_features = ['sex', 'age_approx', 'site_head/neck', 'site_lateral torso', 'site_lower extremity', 'site_oral/genital', 'site_palms/soles', 'site_torso', 'site_unknown', 'site_upper extremity', 'site_nan']  
+idxs = [i for i in range(len(df))]
+train_idx = []
+val_idx = []
+test_meta = np.array(test_df[meta_features].values, dtype=np.float32)
+
+model = EffNet(pretrained_model=pretrained_model, n_meta_features=len(meta_features)).to(device)
+
+test_ds = MelanomaDataset(image_ids=test_df.image_name.values, meta_features=test_meta, loc='data/512x512-test/512x512-test', dim=sz, transforms=tta_aug)
 test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=True, num_workers=4)
-
-## This function for train is copied from @hanjoonchoe
-## We are going to train and track accuracy and then evaluate and track validation accuracy
 
 def evaluate():
    model.eval()
-   img_ids = []
-   preds = []
+   PREDS = np.zeros((len(test_loader.dataset), 1))
    with torch.no_grad():
-     for idx, (img_id, inputs) in T(enumerate(test_loader),total=len(test_loader)):
+     for t in range(TTA):
+      print('TTA {}'.format(t+1))
+      img_ids = []
+      preds = []
+      for idx, (img_id, inputs, meta) in T(enumerate(test_loader),total=len(test_loader)):
         inputs = inputs.to(device)
-        outputs = model(inputs.float())
+        meta = meta.to(device)
+        outputs = model(inputs.float(), meta)
         img_ids.extend(img_id)        
-        preds.extend(torch.softmax(outputs,1)[:,1].detach().cpu().numpy())     
-   return img_ids, preds
+        preds.extend(torch.softmax(outputs,1)[:,1].detach().cpu().numpy())
+      PREDS += np.array(preds).reshape(len(test_loader.dataset), 1)
+     PREDS /= TTA     
+   return img_ids, list(PREDS[:, 0])
 
 if load_model:
   tmp = torch.load(os.path.join(model_dir, model_name+'_auc.pth'))
