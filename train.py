@@ -25,12 +25,14 @@ from torch.nn import functional as F
 from torch.utils.data import Dataset,DataLoader
 from MelanomaDataset import MelanomaDataset
 from catalyst.data.sampler import BalanceClassSampler
+from losses.arcface import ArcFaceLoss
 from utils import *
 from optimizers import Over9000
 from augmentations.augmix import RandomAugMix
 from augmentations.gridmask import GridMask
+from augmentations.hair import Hair
 from model.seresnext import seresnext
-from model.effnet import EffNet
+from model.effnet import EffNet, EffNet_ArcFace
 # from model.densenet import *
 ## This library is for augmentations .
 from albumentations import (
@@ -68,13 +70,13 @@ from albumentations import (
 n_fold = 5
 fold = 0
 SEED = 24
-batch_size = 50
+batch_size = 24
 sz = 384
-learning_rate = 5e-4
+learning_rate = 2.5e-4
 patience = 4
 opts = ['normal', 'mixup', 'cutmix']
 device = 'cuda:0'
-apex = True
+apex = False
 pretrained_model = 'efficientnet-b3'
 model_name = '{}_trial_stage1_fold_{}'.format(pretrained_model, fold)
 model_dir = 'model_dir'
@@ -98,6 +100,7 @@ train_aug =Compose([
     # GridMask(num_grid=7, p=0.7, fill_value=0)
     ], p=0.20),
     RandomSizedCrop(min_max_height=(int(sz*0.8), int(sz*0.8)), height=sz, width=sz, p=0.5),
+    Hair(p=0.6),
     # RandomAugMix(severity=1, width=1, alpha=1., p=0.3),
     # OneOf([
     #     ElasticTransform(p=0.1, alpha=1, sigma=50, alpha_affine=30,border_mode=cv2.BORDER_CONSTANT,value =0),
@@ -140,6 +143,8 @@ df['age_approx'] = df['age_approx'].fillna(0)
 df['patient_id'] = df['patient_id'].fillna(0)
 meta_features = ['sex', 'age_approx'] + [col for col in df.columns if 'site_' in col]
 meta_features.remove('anatom_site_general_challenge')
+meta_features.remove('site_lateral torso')
+meta_features.remove('site_unknown')
 #split data
 # mskf = StratifiedKFold(n_splits=n_fold, shuffle=True, random_state=SEED)
 # for i, (_, test_index) in enumerate(mskf.split(X, y)):
@@ -154,8 +159,7 @@ valid_df = df[(df['fold'] == fold) & (df['source'] == 'ISIC20')]
 train_meta = np.array(train_df[meta_features].values, dtype=np.float32)
 valid_meta = np.array(valid_df[meta_features].values, dtype=np.float32)
 # model = seresnext(pretrained_model).to(device)
-print(meta_features)
-model = EffNet(pretrained_model=pretrained_model, n_meta_features=train_meta.shape[1]).to(device)
+model = EffNet_ArcFace(pretrained_model=pretrained_model, n_meta_features=train_meta.shape[1]).to(device)
 
 train_ds = MelanomaDataset(train_df.image_id.values, train_meta, train_df.target.values, dim=sz, transforms=train_aug)
 if balanced_sampler:
@@ -264,7 +268,8 @@ optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 # scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, learning_rate, total_steps=None, epochs=n_epochs, steps_per_epoch=3348, pct_start=0.0,
                                   #  anneal_strategy='cos', cycle_momentum=True,base_momentum=0.85, max_momentum=0.95,  div_factor=100.0)
 lr_reduce_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=patience, verbose=True, threshold=1e-4, threshold_mode='rel', cooldown=0, min_lr=1e-7, eps=1e-08)
-criterion = nn.BCEWithLogitsLoss()
+# criterion = nn.BCEWithLogitsLoss()
+criterion = ArcFaceLoss()
 # criterion = FocalLoss(logits=True).to(device)
 # criterion = LabelSmoothing().to(device) 
 # criterion = criterion_margin_focal_binary_cross_entropy

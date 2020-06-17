@@ -114,7 +114,6 @@ tta_aug =Compose([
     Normalize(always_apply=True)
     ]
       )
-df = pd.read_csv('data/train.csv')      
 test_df = pd.read_csv('data/test.csv')
 test_df= test_df.sample(frac=1, random_state=SEED).reset_index(drop=True)
 
@@ -134,17 +133,9 @@ test_df['sex'] = test_df['sex'].fillna(-1)
 test_df['age_approx'] /= test_df['age_approx'].max()
 test_df['age_approx'] = test_df['age_approx'].fillna(0)
 test_df['patient_id'] = test_df['patient_id'].fillna(0)
-test_df['site_lateral torso'] = np.nan
-test_df['site_unknown'] = np.nan
-test_df['site_lateral torso'] = test_df['site_lateral torso'].fillna(0)
-test_df['site_unknown'] = test_df['site_unknown'].fillna(0)
 
 meta_features = ['sex', 'age_approx'] + [col for col in test_df.columns if 'site_' in col]
 meta_features.remove('anatom_site_general_challenge')
-meta_features = ['sex', 'age_approx', 'site_head/neck', 'site_lateral torso', 'site_lower extremity', 'site_oral/genital', 'site_palms/soles', 'site_torso', 'site_unknown', 'site_upper extremity', 'site_nan']  
-idxs = [i for i in range(len(df))]
-train_idx = []
-val_idx = []
 test_meta = np.array(test_df[meta_features].values, dtype=np.float32)
 
 model = EffNet(pretrained_model=pretrained_model, n_meta_features=len(meta_features)).to(device)
