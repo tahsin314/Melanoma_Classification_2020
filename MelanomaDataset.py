@@ -24,18 +24,17 @@ def onehot(size, target):
     return vec
 
 class MelanomaDataset(Dataset):
-    def __init__(self, image_ids, meta_features=None, labels=None, loc='data/512x512-dataset-melanoma/512x512-dataset-melanoma/', dim=256, transforms=None):
+    def __init__(self, image_ids, meta_features=None, labels=None, dim=256, transforms=None):
         super().__init__()
         self.image_ids = image_ids
         self.labels = labels
         self.transforms = transforms
         self.dim = dim
-        self.ROOT_PATH = loc
         self.meta_features = meta_features
 
     def __getitem__(self, idx):
         image_id = self.image_ids[idx]
-        image = cv2.imread(f'{self.ROOT_PATH}/{image_id}.jpg', cv2.IMREAD_COLOR)
+        image = cv2.imread(image_id, cv2.IMREAD_COLOR)
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         image = cv2.resize(image, (self.dim, self.dim))
         # image = image.astype(np.float32) / 255.0
