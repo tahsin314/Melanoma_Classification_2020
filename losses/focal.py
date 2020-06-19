@@ -1,3 +1,5 @@
+import numpy as np
+import torch
 from torch import nn
 from torch.nn import functional as F
 
@@ -42,6 +44,5 @@ def criterion_margin_focal_binary_cross_entropy(logit, truth):
 
     weight = truth*weight_pos + (1-truth)*weight_neg
     loss = margin + weight*(1 - prob) ** gamma * log_prob
-
     # loss = loss.mean()
     return loss

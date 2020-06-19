@@ -1,5 +1,6 @@
 import numpy as np
 import cv2
+import pandas as pd 
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
@@ -7,6 +8,33 @@ from torch.autograd import Variable
 import albumentations
 from albumentations.core.transforms_interface import DualTransform
 from albumentations.augmentations import functional as F_alb
+
+def pseudo_label_df(df, th=0.1):
+    pred = df['prediction'].copy()
+    pred[pred<th] = 0
+    pred[pred>(1-th)] = 1
+    df['target'] = pred.astype('int')
+    df = df.drop(df[(df.target> 0) & (df.target < 1)].index)
+    return df
+
+def meta_df(df):
+    '''
+    Meta features: https://www.kaggle.com/nroman/melanoma-pytorch-starter-efficientnet
+    '''
+    # One-hot encoding of anatom_site_general_challenge feature
+    concat = df['anatom_site_general_challenge']
+    dummies = pd.get_dummies(concat, dummy_na=True, dtype=np.uint8, prefix='site')
+    df = pd.concat([df, dummies.iloc[:df.shape[0]]], axis=1)
+
+    # Sex features
+    df['sex'] = df['sex'].map({'male': 1, 'female': 0})
+    df['sex'] = df['sex'].fillna(-1)
+
+    # Age features
+    df['age_approx'] /= df['age_approx'].max()
+    df['age_approx'] = df['age_approx'].fillna(0)
+    df['patient_id'] = df['patient_id'].fillna(0)
+    return df
 
 class UnNormalize(object):
     def __init__(self, mean, std):

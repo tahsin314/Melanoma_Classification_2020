@@ -27,7 +27,7 @@ from optimizers import Over9000
 from augmentations.augmix import RandomAugMix
 from augmentations.gridmask import GridMask
 from model.seresnext import seresnext
-from model.effnet import EffNet
+from model.effnet import EffNet, EffNet_ArcFace
 # from model.densenet import *
 ## This library is for augmentations .
 from albumentations import (
@@ -66,13 +66,13 @@ n_fold = 5
 fold = 0
 SEED = 24
 batch_size = 32
-sz = 384
+sz = 256
 learning_rate = 5e-4
 patience = 5
 opts = ['normal', 'mixup', 'cutmix']
 device = 'cuda:0'
-apex = True
-pretrained_model = 'efficientnet-b3'
+apex = False
+pretrained_model = 'efficientnet-b1'
 model_name = '{}_trial_stage1_fold_{}'.format(pretrained_model, fold)
 model_dir = 'model_dir'
 history_dir = 'history_dir'
@@ -83,7 +83,7 @@ prev_epoch_num = 0
 valid_recall = 0.0
 best_valid_recall = 0.0
 best_valid_loss = np.inf
-TTA = 4
+TTA = 1
 np.random.seed(SEED)
 os.makedirs(model_dir, exist_ok=True)
 os.makedirs(history_dir, exist_ok=True)
@@ -116,6 +116,8 @@ tta_aug =Compose([
       )
 test_df = pd.read_csv('data/test.csv')
 test_df= test_df.sample(frac=1, random_state=SEED).reset_index(drop=True)
+test_image_path = 'data/512x512-test/512x512-test'
+test_df['path'] = test_df['image_name'].map(lambda x: os.path.join(test_image_path,'{}.jpg'.format(x)))
 
 '''
 Meta features: https://www.kaggle.com/nroman/melanoma-pytorch-starter-efficientnet
@@ -138,9 +140,9 @@ meta_features = ['sex', 'age_approx'] + [col for col in test_df.columns if 'site
 meta_features.remove('anatom_site_general_challenge')
 test_meta = np.array(test_df[meta_features].values, dtype=np.float32)
 
-model = EffNet(pretrained_model=pretrained_model, n_meta_features=len(meta_features)).to(device)
+model = EffNet_ArcFace(pretrained_model=pretrained_model, n_meta_features=len(meta_features)).to(device)
 
-test_ds = MelanomaDataset(image_ids=test_df.image_name.values, meta_features=test_meta, loc='data/512x512-test/512x512-test', dim=sz, transforms=tta_aug)
+test_ds = MelanomaDataset(image_ids=test_df.path.values, meta_features=test_meta, dim=sz, transforms=test_aug)
 test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=True, num_workers=4)
 
 def evaluate():
@@ -157,14 +159,15 @@ def evaluate():
         outputs = model(inputs.float(), meta)
         img_ids.extend(img_id)        
         preds.extend(torch.softmax(outputs,1)[:,1].detach().cpu().numpy())
+        # preds.extend(outputs.detach().cpu().numpy()[:,1])
       PREDS += np.array(preds).reshape(len(test_loader.dataset), 1)
      PREDS /= TTA     
    return img_ids, list(PREDS[:, 0])
 
 if load_model:
-  tmp = torch.load(os.path.join(model_dir, model_name+'_auc.pth'))
+  tmp = torch.load(os.path.join(model_dir, model_name+'_loss.pth'))
   model.load_state_dict(tmp['model'])
-  print("Best Loss: {:4f}".format(tmp['best_auc']))
+  print("Best Loss: {:4f}".format(tmp['best_loss']))
   del tmp
   print('Model Loaded!')
 
