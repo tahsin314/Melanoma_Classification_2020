@@ -3,55 +3,11 @@ from matplotlib import pyplot as plt
 import pandas as pd
 import cv2
 from torchvision.utils import save_image
-from albumentations import (
-    PadIfNeeded,
-    HorizontalFlip,
-    VerticalFlip,    
-    CenterCrop,    
-    Crop,
-    Compose,
-    Cutout,
-    Transpose,
-    RandomRotate90,
-    ElasticTransform,
-    GridDistortion, 
-    OpticalDistortion,
-    RandomSizedCrop,
-    Resize,
-    CenterCrop,
-    OneOf,
-    CLAHE,
-    RandomBrightnessContrast,
-    RandomBrightness,
-    RandomGamma,
-    ShiftScaleRotate ,
-    GaussNoise,
-    Blur,
-    MotionBlur,   
-    GaussianBlur,
-    Normalize, 
-)
-from augmentations.augmix import RandomAugMix
-from augmentations.gridmask import GridMask
-# from augmentations.cutouts import Cutout
+from config import *
 from MelanomaDataset import *
 from utils import *
 
-sz = 256
-train_aug =Compose([
-  ShiftScaleRotate(p=0.9,rotate_limit=180, border_mode= cv2.BORDER_REFLECT, value=[0, 0, 0], scale_limit=0.25),
-    OneOf([
-    Cutout(p=0.3, max_h_size=sz//16, max_w_size=sz//16, num_holes=10, fill_value=0),
-    # GridMask(num_grid=7, p=0.7, fill_value=0)
-    ], p=0.20),
-    RandomSizedCrop(min_max_height=(int(sz*0.8), int(sz*0.8)), height=sz, width=sz, p=0.5),
-    RandomAugMix(severity=1, width=1, alpha=1., p=0.3),
-    HorizontalFlip(0.4),
-    VerticalFlip(0.4),
-    # Normalize(always_apply=True)
-    ]
-      )
-
+denorm = UnNormalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 def visualize(original_image):
     fontsize = 18
     fig = plt.figure(num=None, figsize=(12, 12), dpi=80, facecolor='w', edgecolor='k')
@@ -67,8 +23,11 @@ def visualize(original_image):
     fig.savefig('aug.png')
 
 train_df = pd.read_csv('data/folds.csv')
-train_ds = MelanomaDataset(train_df.image_id.values, train_df.target.values, dim=sz, transforms=train_aug)
-train_loader = DataLoader(train_ds,batch_size=64, shuffle=True)
-im, _ = iter(train_loader).next()
-print(im.size(), torch.max(im))
-save_image(im, 'Aug.png', nrow=8, padding=2, normalize=False, range=None, scale_each=False, pad_value=0)
+train_df = meta_df(train_df)
+train_df['path'] = train_df['image_id'].map(lambda x: os.path.join(image_path,'{}.jpg'.format(x)))
+train_meta = np.array(train_df[meta_features].values, dtype=np.float32)
+train_ds = MelanomaDataset(train_df.path.values, train_meta, train_df.target.values, dim=512, transforms=train_aug)
+train_loader = DataLoader(train_ds,batch_size=64, shuffle=True, num_workers=4)
+im, _, _ = iter(train_loader).next()
+# print(im.size(), torch.max(denorm(im)))
+save_image(im.float(), 'Aug.png', nrow=8, padding=2, normalize=True, range=None, scale_each=False, pad_value=0)
