@@ -1,6 +1,7 @@
 # Courtesy: https://www.kaggle.com/c/siim-isic-melanoma-classification/discussion/159476
 # Albumentations version is also added
 
+import os
 import random
 import numpy as np
 import cv2 
@@ -30,7 +31,7 @@ class MicroscopeAlbumentations(ImageOnlyTransform):
     def __init__(self, always_apply=False, p=0.5):
         super(MicroscopeAlbumentations, self).__init__(always_apply, p)
 
-    def apply(self, image, **params):
+    def apply(self, img, **params):
         """
         Args:
             img (PIL Image): Image to draw hairs on.

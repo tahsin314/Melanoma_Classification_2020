@@ -29,88 +29,21 @@ from losses.arcface import ArcFaceLoss
 from losses.focal import criterion_margin_focal_binary_cross_entropy
 from utils import *
 from optimizers import Over9000
-from augmentations.augmix import RandomAugMix
-from augmentations.gridmask import GridMask
-from augmentations.hair import Hair
 from model.seresnext import seresnext
 from model.effnet import EffNet, EffNet_ArcFace
-# from model.densenet import *
-## This library is for augmentations .
-from albumentations import (
-    PadIfNeeded, HorizontalFlip,
-    VerticalFlip, CenterCrop,    
-    RandomCrop, Resize,
-    Crop, Compose,
-    Transpose, RandomRotate90,
-    ElasticTransform, GridDistortion, 
-    OpticalDistortion, RandomSizedCrop,
-    Resize, CenterCrop,
-    VerticalFlip, HorizontalFlip,
-    OneOf, CLAHE,
-    RandomBrightnessContrast, Cutout,
-    RandomGamma, ShiftScaleRotate ,
-    GaussNoise, Blur,
-    MotionBlur, GaussianBlur,
-    HueSaturationValue, Normalize, 
-)
-n_fold = 5
-fold = 0
-SEED = 24
-batch_size = 24
-sz = 256
-learning_rate = 2.5e-4
-patience = 4
-opts = ['normal', 'mixup', 'cutmix']
-device = 'cuda:0'
-apex = False
-pretrained_model = 'efficientnet-b1'
-model_name = '{}_trial_stage1_fold_{}'.format(pretrained_model, fold)
-model_dir = 'model_dir'
-history_dir = 'history_dir'
-imagenet_stats = ([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-load_model = False
+from config import *
 history = pd.DataFrame()
 prev_epoch_num = 0
-n_epochs = 40
 best_valid_loss = np.inf
 best_valid_auc = 0.0
 balanced_sampler = False
 np.random.seed(SEED)
 os.makedirs(model_dir, exist_ok=True)
 os.makedirs(history_dir, exist_ok=True)
-
-train_aug =Compose([
-  ShiftScaleRotate(p=0.9,rotate_limit=180, border_mode= cv2.BORDER_REFLECT, value=[0, 0, 0], scale_limit=0.25),
-    OneOf([
-    Cutout(p=0.3, max_h_size=sz//16, max_w_size=sz//16, num_holes=10, fill_value=0),
-    # GridMask(num_grid=7, p=0.7, fill_value=0)
-    ], p=0.20),
-    RandomSizedCrop(min_max_height=(int(sz*0.8), int(sz*0.8)), height=sz, width=sz, p=0.5),
-    Hair(p=0.6),
-    # RandomAugMix(severity=1, width=1, alpha=1., p=0.3),
-    # OneOf([
-    #     ElasticTransform(p=0.1, alpha=1, sigma=50, alpha_affine=30,border_mode=cv2.BORDER_CONSTANT,value =0),
-    #     GridDistortion(distort_limit =0.05 ,border_mode=cv2.BORDER_CONSTANT,value =0, p=0.1),
-    #     OpticalDistortion(p=0.1, distort_limit= 0.05, shift_limit=0.2,border_mode=cv2.BORDER_CONSTANT,value =0)                  
-    #     ], p=0.3),
-    # OneOf([
-    #     GaussNoise(var_limit=0.02),
-    #     # Blur(),
-    #     GaussianBlur(blur_limit=3),
-    #     RandomGamma(p=0.8),
-    #     ], p=0.5),
-    HueSaturationValue(p=0.4),
-    HorizontalFlip(0.4),
-    VerticalFlip(0.4),
-    Normalize(always_apply=True)
-    ]
-      )
-val_aug = Compose([Normalize(always_apply=True)])
-image_path = 'data/512x512-dataset-melanoma/512x512-dataset-melanoma/'
-test_image_path = 'data/512x512-test/512x512-test'
-pseduo_df = pd.read_csv('submissions/test_940.csv')
-pseduo_df = pseudo_label_df(pseduo_df)
-print("Pseudo data length: {}".format(len(pseduo_df))) 
+pseduo_df = pseudo_label_df(pseduo_df, pseudo_lo_thr, pseudo_up_thr)
+pseudo_labels = list(pseduo_df['target'])
+print("Pseudo data length: {}".format(len(pseduo_df)))
+print("Negative label: {}, Positive label: {}".format(pseudo_labels.count(0), pseudo_labels.count(1))) 
 df = pd.read_csv('data/folds.csv')
 df['path'] = df['image_id'].map(lambda x: os.path.join(image_path,'{}.jpg'.format(x)))
 pseduo_df['path'] = pseduo_df['image_name'].map(lambda x: os.path.join(test_image_path,'{}.jpg'.format(x)))
@@ -149,10 +82,10 @@ if balanced_sampler:
 else:
   train_loader = DataLoader(train_ds,batch_size=batch_size, shuffle=True, num_workers=4)
 
-valid_ds = MelanomaDataset(valid_df.image_id.values, valid_meta, valid_df.target.values, dim=sz, transforms=val_aug)
+valid_ds = MelanomaDataset(valid_df.path.values, valid_meta, valid_df.target.values, dim=sz, transforms=val_aug)
 valid_loader = DataLoader(valid_ds, batch_size=batch_size, shuffle=True, num_workers=4)
 
-test_ds = MelanomaDataset(test_df.image_name.values, test_meta, test_df.target.values, dim=sz, transforms=val_aug)
+test_ds = MelanomaDataset(test_df.path.values, test_meta, test_df.target.values, dim=sz, transforms=val_aug)
 test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=True, num_workers=4)
 
 ## This function for train is copied from @hanjoonchoe
@@ -250,7 +183,8 @@ def evaluate(epoch,history, mode='val'):
    auc = roc_auc_score(lab, pred)
    msg = '{} Loss: {:.4f} \n {} Auc: {:.4f} '.format(mode, running_loss/(len(valid_loader)), mode, auc)
    print(msg)
-   lr_reduce_scheduler.step(running_loss)
+   if mode=='val':
+     lr_reduce_scheduler.step(running_loss)
    history.loc[epoch, '{}_loss'.format(mode)] = running_loss/(len(valid_loader))
    history.loc[epoch, '{}_auc'.format(mode)] = roc_auc_score(lab, pred)
    history.to_csv(os.path.join(history_dir, 'history_{}.csv'.format(model_name)), index=False)

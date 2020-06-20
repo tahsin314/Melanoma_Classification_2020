@@ -1,5 +1,7 @@
 # Courtesy: https://www.kaggle.com/nroman/melanoma-pytorch-starter-efficientnet
 # Albumentation version is also added
+
+import os
 import random
 import numpy as np
 import cv2 
@@ -81,12 +83,21 @@ class AdvancedHairAugmentation:
     '''
     Copied from https://www.kaggle.com/c/siim-isic-melanoma-classification/discussion/159176
     '''
-    def __init__(self, hairs: int = 4, hairs_folder: str = ""):
+    def __init__(self, hairs: int = 4, hairs_folder: str = "images"):
         self.hairs = hairs
         self.hairs_folder = hairs_folder
 
     def __call__(self, img):
         n_hairs = random.randint(0, self.hairs)
+
+        if not n_hairs:
+            return img
+
+        height, width, _ = img.shape  # target image width and height
+        hair_images = [im for im in os.listdir(self.hairs_folder) if 'png' in im]
+
+        for _ in range(n_hairs):
+            n_hairs = random.randint(0, self.hairs)
 
         if not n_hairs:
             return img
@@ -116,13 +127,13 @@ class AdvancedHairAugmentation:
         return img
 
 class AdvancedHairAugmentationAlbumentations(ImageOnlyTransform):
-    def __init__(self, hairs: int = 4, hairs_folder: str = "", always_apply=False,
+    def __init__(self, hairs: int = 4, hairs_folder: str = "augmentations/images", always_apply=False,
             p=0.5):
         super(AdvancedHairAugmentationAlbumentations, self).__init__(always_apply, p)
         self.hairs = hairs
         self.hairs_folder = hairs_folder
 
-    def apply(self, image, **params):
+    def apply(self, img, **params):
         """
         Args:
             img (PIL Image): Image to draw hairs on.
@@ -131,6 +142,15 @@ class AdvancedHairAugmentationAlbumentations(ImageOnlyTransform):
             PIL Image: Image with drawn hairs.
         """
         n_hairs = random.randint(0, self.hairs)
+
+        if not n_hairs:
+            return img
+
+        height, width, _ = img.shape  # target image width and height
+        hair_images = [im for im in os.listdir(self.hairs_folder) if 'png' in im]
+
+        for _ in range(n_hairs):
+            n_hairs = random.randint(0, self.hairs)
 
         if not n_hairs:
             return img
