@@ -9,12 +9,13 @@ import albumentations
 from albumentations.core.transforms_interface import DualTransform
 from albumentations.augmentations import functional as F_alb
 
-def pseudo_label_df(df, th=0.1):
+def pseudo_label_df(df, lo_th=0.1, up_th=0.8):
     pred = df['prediction'].copy()
-    pred[pred<th] = 0
-    pred[pred>(1-th)] = 1
-    df['target'] = pred.astype('int')
-    df = df.drop(df[(df.target> 0) & (df.target < 1)].index)
+    pred[pred<lo_th] = 0
+    pred[pred>up_th] = 1
+    df['prediction'] = pred
+    df = df.drop(df[(df.prediction> 0) & (df.prediction < 1)].index)
+    df['target'] = df['prediction'].astype('int')
     return df
 
 def meta_df(df):
