@@ -24,8 +24,6 @@ from torch.utils.data import Dataset,DataLoader
 from MelanomaDataset import MelanomaDataset
 from utils import *
 from optimizers import Over9000
-from augmentations.augmix import RandomAugMix
-from augmentations.gridmask import GridMask
 from model.seresnext import seresnext
 from model.effnet import EffNet, EffNet_ArcFace
 # from model.densenet import *
@@ -140,10 +138,10 @@ meta_features = ['sex', 'age_approx'] + [col for col in test_df.columns if 'site
 meta_features.remove('anatom_site_general_challenge')
 test_meta = np.array(test_df[meta_features].values, dtype=np.float32)
 
-model = EffNet_ArcFace(pretrained_model=pretrained_model, n_meta_features=len(meta_features)).to(device)
+model = EffNet(pretrained_model=pretrained_model, n_meta_features=len(meta_features)).to(device)
 
 test_ds = MelanomaDataset(image_ids=test_df.path.values, meta_features=test_meta, dim=sz, transforms=test_aug)
-test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=True, num_workers=4)
+test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False, num_workers=4)
 
 def evaluate():
    model.eval()

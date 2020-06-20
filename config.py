@@ -1,9 +1,16 @@
+import os
 import cv2
 import pandas as pd
+import torch
+from torch import optim
 from augmentations.augmix import RandomAugMix
 from augmentations.gridmask import GridMask
 from augmentations.hair import Hair, AdvancedHairAugmentationAlbumentations
 from augmentations.microscope import MicroscopeAlbumentations
+from losses.arcface import ArcFaceLoss
+from losses.focal import criterion_margin_focal_binary_cross_entropy
+from model.seresnext import seresnext
+from model.effnet import EffNet, EffNet_ArcFace
 from albumentations import (
     PadIfNeeded, HorizontalFlip, VerticalFlip, CenterCrop,    
     RandomCrop, Resize, Crop, Compose, HueSaturationValue,
@@ -16,19 +23,26 @@ from albumentations import (
 n_fold = 5
 fold = 0
 SEED = 24
-batch_size = 48
-sz = 256
-learning_rate = 5e-4
+batch_size = 8
+sz = 512
+learning_rate = 7.5e-4
 patience = 6
+accum_step = 48 // batch_size
 opts = ['normal', 'mixup', 'cutmix']
 device = 'cuda:0'
 apex = False
-pretrained_model = 'efficientnet-b1'
+pretrained_model = 'efficientnet-b5'
 model_name = '{}_trial_stage1_fold_{}'.format(pretrained_model, fold)
 model_dir = 'model_dir'
 history_dir = 'history_dir'
+load_model = False
+
+if load_model and os.path.exists(os.path.join(history_dir, 'history_{}.csv'.format(model_name))):
+    history = pd.read_csv(os.path.join(history_dir, 'history_{}.csv'.format(model_name)))
+else:
+    history = pd.DataFrame()
+
 imagenet_stats = ([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-load_model = True
 n_epochs = 40
 balanced_sampler = False
 pseudo_lo_thr = 0.1
@@ -49,12 +63,12 @@ train_aug =Compose([
     #     GridDistortion(distort_limit =0.05 ,border_mode=cv2.BORDER_CONSTANT,value =0, p=0.1),
     #     OpticalDistortion(p=0.1, distort_limit= 0.05, shift_limit=0.2,border_mode=cv2.BORDER_CONSTANT,value =0)                  
     #     ], p=0.3),
-    # OneOf([
-    #     GaussNoise(var_limit=0.02),
-    #     # Blur(),
-    #     GaussianBlur(blur_limit=3),
-    #     RandomGamma(p=0.8),
-    #     ], p=0.5),
+    OneOf([
+        # GaussNoise(var_limit=0.02),
+        # Blur(),
+        GaussianBlur(blur_limit=3),
+        RandomGamma(p=0.8),
+        ], p=0.5),
     HueSaturationValue(p=0.4),
     HorizontalFlip(0.4),
     VerticalFlip(0.4),
@@ -66,3 +80,5 @@ image_path = 'data/512x512-dataset-melanoma/512x512-dataset-melanoma/'
 test_image_path = 'data/512x512-test/512x512-test'
 pseduo_df = pd.read_csv('submissions/test_936.csv')
 df = pd.read_csv('data/folds.csv')
+meta_features = ['sex', 'age_approx', 'site_head/neck', 'site_lower extremity', 'site_oral/genital', 'site_palms/soles', 'site_torso', 'site_upper extremity', 'site_nan']
+

@@ -32,7 +32,6 @@ from optimizers import Over9000
 from model.seresnext import seresnext
 from model.effnet import EffNet, EffNet_ArcFace
 from config import *
-history = pd.DataFrame()
 prev_epoch_num = 0
 best_valid_loss = np.inf
 best_valid_auc = 0.0
@@ -54,7 +53,6 @@ X, y = df['image_id'], df['target']
 df= df.sample(frac=1, random_state=SEED).reset_index(drop=True)
 df = meta_df(df)
 pseduo_df = meta_df(pseduo_df)
-meta_features = ['sex', 'age_approx', 'site_head/neck', 'site_lower extremity', 'site_oral/genital', 'site_palms/soles', 'site_torso', 'site_upper extremity', 'site_nan']
 
 #split data
 # mskf = StratifiedKFold(n_splits=n_fold, shuffle=True, random_state=SEED)
@@ -139,14 +137,14 @@ def train(epoch,history):
             scaled_loss.backward()
     else:
           loss.backward()
-    optimizer.step()
-    optimizer.zero_grad()
+    
+    if (idx+1) % accum_step == 0:
+      optimizer.step()
+      optimizer.zero_grad()
     # scheduler.step()
     elapsed = int(time.time() - t1)
     eta = int(elapsed / (idx+1) * (len(train_loader)-(idx+1)))
-    lr = None
-    for param_group in optimizer.param_groups:
-        lr = param_group['lr']
+    
     if idx%5==0:
       msg = 'Epoch: {} \t Progress: {}/{} \t Loss: {:.4f} \t Time: {}s \t ETA: {}s'.format(epoch, 
       idx, len(train_loader), running_loss/(idx+1), elapsed, eta)
