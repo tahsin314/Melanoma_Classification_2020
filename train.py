@@ -44,15 +44,12 @@ pseudo_labels = list(pseduo_df['target'])
 print("Pseudo data length: {}".format(len(pseduo_df)))
 print("Negative label: {}, Positive label: {}".format(pseudo_labels.count(0), pseudo_labels.count(1))) 
 df = pd.read_csv('data/folds.csv')
-df['path'] = df['image_id'].map(lambda x: os.path.join(image_path,'{}.jpg'.format(x)))
-pseduo_df['path'] = pseduo_df['image_name'].map(lambda x: os.path.join(test_image_path,'{}.jpg'.format(x)))
 pseduo_df['fold'] = np.nan
 pseduo_df['fold'] = pseduo_df['fold'].map(lambda x: n_fold)
 X, y = df['image_id'], df['target']
 # train_df['fold'] = np.nan
-df= df.sample(frac=1, random_state=SEED).reset_index(drop=True)
-df = meta_df(df)
-pseduo_df = meta_df(pseduo_df)
+df = meta_df(df, image_path)
+pseduo_df = meta_df(pseduo_df, test_image_path)
 
 #split data
 # mskf = StratifiedKFold(n_splits=n_fold, shuffle=True, random_state=SEED)
@@ -222,7 +219,7 @@ criterion = criterion_margin_focal_binary_cross_entropy
 if load_model:
   tmp = torch.load(os.path.join(model_dir, model_name+'_loss.pth'))
   model.load_state_dict(tmp['model'])
-  optimizer.load_state_dict(tmp['optim'])
+  # optimizer.load_state_dict(tmp['optim'])
   prev_epoch_num = tmp['epoch']
   best_valid_loss = tmp['best_loss']
   best_valid_loss, best_valid_auc = evaluate(-1,history)
