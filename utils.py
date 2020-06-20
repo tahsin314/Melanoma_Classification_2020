@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import cv2
 import pandas as pd 
@@ -18,7 +19,7 @@ def pseudo_label_df(df, lo_th=0.1, up_th=0.8):
     df['target'] = df['prediction'].astype('int')
     return df
 
-def meta_df(df):
+def meta_df(df, image_path):
     '''
     Meta features: https://www.kaggle.com/nroman/melanoma-pytorch-starter-efficientnet
     '''
@@ -35,6 +36,11 @@ def meta_df(df):
     df['age_approx'] /= df['age_approx'].max()
     df['age_approx'] = df['age_approx'].fillna(0)
     df['patient_id'] = df['patient_id'].fillna(0)
+    try:
+        df['path'] = df['image_id'].map(lambda x: os.path.join(image_path,'{}.jpg'.format(x)))
+    except:
+        df['path'] = df['image_name'].map(lambda x: os.path.join(image_path,'{}.jpg'.format(x)))
+
     return df
 
 class UnNormalize(object):
