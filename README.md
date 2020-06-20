@@ -15,5 +15,13 @@ My scripts for the [SIIM-ISIC Melanoma Classification challenge 2020](https://ww
 ## Can be useful
 - [Deep Metric Learning Solution For MVTec Anomaly Detection Dataset](https://medium.com/analytics-vidhya/spotting-defects-deep-metric-learning-solution-for-mvtec-anomaly-detection-dataset-c77691beb1eb)
 
+## How to run
+- Run `git clone https://github.com/tahsin314/Melanoma_Classification_2020`
+- Download [this](https://www.kaggle.com/shonenkov/melanoma-merged-external-data-512x512-jpeg) dataset and extract the zip file.
+- In the `config.py` file change the `data_dir` variable to your data directory name.
+- Run `conda env create -f environment.yml`
+- Activate the newly created conda environment.
+- Run `train.py`. Change parameters according to your preferences from the `config.py` file before training.
+
 
 **More resources will be added soon.**

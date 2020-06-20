@@ -110,7 +110,7 @@ def train(epoch,history):
     meta = meta.to(device)
     labels = labels.to(device)
     total += len(inputs)
-    choice = choices(opts, weights=[1.00, 0.0, 0.0])
+    choice = choices(opts, weights=choice_weights)
     optimizer.zero_grad()
     if choice[0] == 'normal':
       outputs = model(inputs.float(), meta)
@@ -125,13 +125,21 @@ def train(epoch,history):
       inputs, targets = mixup(inputs, labels, np.random.uniform(0.8, 1.0))
       outputs = model(inputs.float(), meta)
       loss = mixup_criterion(outputs, targets, criterion=criterion, rate=rate)
-      running_loss += loss.item()
+      try:
+        running_loss += loss.item()
+      except:
+        loss = loss.mean()
+        running_loss += loss.item()
     
     elif choice[0] == 'cutmix':
       inputs, targets = cutmix(inputs, labels, np.random.uniform(0.8, 1.0))
       outputs = model(inputs.float(), meta)
       loss = cutmix_criterion(outputs, targets, criterion=criterion, rate=rate)
-      running_loss += loss.item()
+      try:
+        running_loss += loss.item()
+      except:
+        loss = loss.mean()
+        running_loss += loss.item()
     if apex:
         with amp.scale_loss(loss, optimizer) as scaled_loss:
             scaled_loss.backward()
