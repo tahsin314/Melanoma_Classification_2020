@@ -25,17 +25,18 @@ fold = 0
 SEED = 24
 batch_size = 8
 sz = 512
-learning_rate = 7.5e-4
+learning_rate = 1e-3
 patience = 6
 accum_step = 48 // batch_size
 opts = ['normal', 'mixup', 'cutmix']
+choice_weights = [1.0, 0.0, 0.0]
 device = 'cuda:0'
 apex = False
 pretrained_model = 'efficientnet-b5'
 model_name = '{}_trial_stage1_fold_{}'.format(pretrained_model, fold)
 model_dir = 'model_dir'
 history_dir = 'history_dir'
-load_model = False
+load_model = True
 
 if load_model and os.path.exists(os.path.join(history_dir, 'history_{}.csv'.format(model_name))):
     history = pd.read_csv(os.path.join(history_dir, 'history_{}.csv'.format(model_name)))
@@ -76,9 +77,10 @@ train_aug =Compose([
     ]
       )
 val_aug = Compose([Normalize(always_apply=True)])
-image_path = 'data/512x512-dataset-melanoma/512x512-dataset-melanoma/'
-test_image_path = 'data/512x512-test/512x512-test'
+data_dir = 'data'
+image_path = f'{data_dir}/512x512-dataset-melanoma/512x512-dataset-melanoma/'
+test_image_path = f'{data_dir}/512x512-test/512x512-test'
 pseduo_df = pd.read_csv('submissions/test_936.csv')
-df = pd.read_csv('data/folds.csv')
+df = pd.read_csv(f'{data_dir}/folds.csv')
 meta_features = ['sex', 'age_approx', 'site_head/neck', 'site_lower extremity', 'site_oral/genital', 'site_palms/soles', 'site_torso', 'site_upper extremity', 'site_nan']
 
