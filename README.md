@@ -14,6 +14,9 @@ My scripts for the [SIIM-ISIC Melanoma Classification challenge 2020](https://ww
 
 ## Can be useful
 - [Deep Metric Learning Solution For MVTec Anomaly Detection Dataset](https://medium.com/analytics-vidhya/spotting-defects-deep-metric-learning-solution-for-mvtec-anomaly-detection-dataset-c77691beb1eb)
+- [Ugly Duckling Concept](https://www.kaggle.com/c/siim-isic-melanoma-classification/discussion/155348)
+- [Public Leaderboard Probing](https://www.kaggle.com/c/siim-isic-melanoma-classification/discussion/154624)
+- [Specialized Rank Loss for Maximizing *ROC_AUC*](https://www.kaggle.com/c/siim-isic-melanoma-classification/discussion/155201#872557)
 
 ## How to run
 - Run `git clone https://github.com/tahsin314/Melanoma_Classification_2020`

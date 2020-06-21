@@ -63,14 +63,14 @@ from albumentations import (
 n_fold = 5
 fold = 0
 SEED = 24
-batch_size = 32
-sz = 256
+batch_size = 6
+sz = 512
 learning_rate = 5e-4
 patience = 5
 opts = ['normal', 'mixup', 'cutmix']
 device = 'cuda:0'
 apex = False
-pretrained_model = 'efficientnet-b1'
+pretrained_model = 'efficientnet-b5'
 model_name = '{}_trial_stage1_fold_{}'.format(pretrained_model, fold)
 model_dir = 'model_dir'
 history_dir = 'history_dir'
