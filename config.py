@@ -36,11 +36,7 @@ pretrained_model = 'efficientnet-b3'
 model_name = '{}_trial_stage1_fold_{}'.format(pretrained_model, fold)
 model_dir = 'model_dir'
 history_dir = 'history_dir'
-<<<<<<< HEAD
 load_model = True
-=======
-load_model = False
->>>>>>> cb51d555846bb87770e622bf073167e120629b91
 
 if load_model and os.path.exists(os.path.join(history_dir, 'history_{}.csv'.format(model_name))):
     history = pd.read_csv(os.path.join(history_dir, 'history_{}.csv'.format(model_name)))
