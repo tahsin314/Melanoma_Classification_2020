@@ -68,7 +68,7 @@ train_meta = np.array(train_df[meta_features].values, dtype=np.float32)
 valid_meta = np.array(valid_df[meta_features].values, dtype=np.float32)
 test_meta = np.array(test_df[meta_features].values, dtype=np.float32)
 # model = seresnext(pretrained_model).to(device)
-model = EffNet(pretrained_model=pretrained_model, n_meta_features=train_meta.shape[1]).to(device)
+model = EffNet_ArcFace(pretrained_model=pretrained_model, n_meta_features=train_meta.shape[1]).to(device)
 
 train_ds = MelanomaDataset(train_df.path.values, train_meta, train_df.target.values, dim=sz, transforms=train_aug)
 if balanced_sampler:
@@ -194,27 +194,27 @@ def evaluate(epoch,history, mode='val'):
    return running_loss/(len(valid_loader)), auc
 
 # Effnet model
-plist = [
-        {'params': model.backbone.parameters(),  'lr': learning_rate/50},
-        {'params': model.meta_fc.parameters(),  'lr': learning_rate},
-        {'params': model.output.parameters(),  'lr': learning_rate},
-    ]
-# Effnet_Arcface model
 # plist = [
 #         {'params': model.backbone.parameters(),  'lr': learning_rate/50},
 #         {'params': model.meta_fc.parameters(),  'lr': learning_rate},
-#         {'params': model.metric_classify.parameters(),  'lr': learning_rate},
+#         {'params': model.output.parameters(),  'lr': learning_rate},
 #     ]
+# Effnet_Arcface model
+plist = [
+        {'params': model.backbone.parameters(),  'lr': learning_rate/50},
+        {'params': model.meta_fc.parameters(),  'lr': learning_rate},
+        {'params': model.metric_classify.parameters(),  'lr': learning_rate},
+    ]
 
 optimizer = optim.Adam(plist, lr=learning_rate)
 # scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, learning_rate, total_steps=None, epochs=n_epochs, steps_per_epoch=3348, pct_start=0.0,
                                   #  anneal_strategy='cos', cycle_momentum=True,base_momentum=0.85, max_momentum=0.95,  div_factor=100.0)
 lr_reduce_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=patience, verbose=True, threshold=1e-4, threshold_mode='rel', cooldown=0, min_lr=1e-7, eps=1e-08)
 # criterion = nn.BCEWithLogitsLoss()
-# criterion = ArcFaceLoss()
+criterion = ArcFaceLoss()
 # criterion = FocalLoss(logits=True).to(device)
 # criterion = LabelSmoothing().to(device) 
-criterion = criterion_margin_focal_binary_cross_entropy
+# criterion = criterion_margin_focal_binary_cross_entropy
 
 if load_model:
   tmp = torch.load(os.path.join(model_dir, model_name+'_loss.pth'))

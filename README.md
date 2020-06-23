@@ -9,7 +9,8 @@ My scripts for the [SIIM-ISIC Melanoma Classification challenge 2020](https://ww
 - [Margin Focal Loss](https://www.kaggle.com/c/siim-isic-melanoma-classification/discussion/155201)
 - [Meta Features](https://www.kaggle.com/nroman/melanoma-pytorch-starter-efficientnet)
 - [1st place solution in ISIC 2019 challenge (w/code)](https://www.kaggle.com/c/siim-isic-melanoma-classification/discussion/154683)
-- [APTOS Gold Medal Solutions](https://www.kaggle.com/c/aptos2019-blindness-detection/discussion/108307): ALthough data type is different but it might be helpful.
+- [APTOS Gold Medal Solutions](https://www.kaggle.com/c/aptos2019-blindness-detection/discussion/108307): Although data type is different but it might be helpful.
+- [Rank then Blend](https://www.kaggle.com/ragnar123/rank-then-blend)
 
 
 ## Can be useful

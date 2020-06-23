@@ -27,65 +27,8 @@ from optimizers import Over9000
 from model.seresnext import seresnext
 from model.effnet import EffNet, EffNet_ArcFace
 # from model.densenet import *
-## This library is for augmentations .
-from albumentations import (
-    PadIfNeeded,
-    HorizontalFlip,
-    VerticalFlip,    
-    CenterCrop,    
-    RandomCrop,
-    Resize,
-    Crop,
-    Compose,
-    Transpose,
-    RandomRotate90,
-    ElasticTransform,
-    GridDistortion, 
-    OpticalDistortion,
-    RandomSizedCrop,
-    Resize,
-    CenterCrop,
-    VerticalFlip,
-    HorizontalFlip,
-    OneOf,
-    CLAHE,
-    RandomBrightnessContrast,    
-    Cutout,
-    RandomGamma,
-    ShiftScaleRotate ,
-    GaussNoise,
-    Blur,
-    MotionBlur,   
-    GaussianBlur,
-    HueSaturationValue,
-    Normalize, 
-)
-n_fold = 5
-fold = 0
-SEED = 24
-batch_size = 6
-sz = 512
-learning_rate = 5e-4
-patience = 5
-opts = ['normal', 'mixup', 'cutmix']
-device = 'cuda:0'
-apex = False
-pretrained_model = 'efficientnet-b5'
-model_name = '{}_trial_stage1_fold_{}'.format(pretrained_model, fold)
-model_dir = 'model_dir'
-history_dir = 'history_dir'
-imagenet_stats = ([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-load_model = True
+from config import *
 history = pd.DataFrame()
-prev_epoch_num = 0
-valid_recall = 0.0
-best_valid_recall = 0.0
-best_valid_loss = np.inf
-TTA = 1
-np.random.seed(SEED)
-os.makedirs(model_dir, exist_ok=True)
-os.makedirs(history_dir, exist_ok=True)
-
 test_aug = Compose([Normalize()])
 tta_aug =Compose([
   ShiftScaleRotate(p=0.9,rotate_limit=180, border_mode= cv2.BORDER_REFLECT, value=[0, 0, 0], scale_limit=0.25),
