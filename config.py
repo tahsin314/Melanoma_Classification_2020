@@ -23,8 +23,8 @@ from albumentations import (
 n_fold = 5
 fold = 0
 SEED = 24
-batch_size = 8
-sz = 512
+batch_size = 24
+sz = 384
 learning_rate = 2e-3
 patience = 4
 accum_step = 48 // batch_size
@@ -32,11 +32,11 @@ opts = ['normal', 'mixup', 'cutmix']
 choice_weights = [0.8, 0.1, 0.1]
 device = 'cuda:0'
 apex = False
-pretrained_model = 'efficientnet-b5'
+pretrained_model = 'efficientnet-b3'
 model_name = '{}_trial_stage1_fold_{}'.format(pretrained_model, fold)
 model_dir = 'model_dir'
 history_dir = 'history_dir'
-load_model = True
+load_model = False
 
 if load_model and os.path.exists(os.path.join(history_dir, 'history_{}.csv'.format(model_name))):
     history = pd.read_csv(os.path.join(history_dir, 'history_{}.csv'.format(model_name)))
@@ -45,6 +45,7 @@ else:
 
 imagenet_stats = ([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 n_epochs = 40
+TTA = 1
 balanced_sampler = False
 pseudo_lo_thr = 0.1
 pseudo_up_thr = 0.65
@@ -80,6 +81,6 @@ val_aug = Compose([Normalize(always_apply=True)])
 data_dir = 'data'
 image_path = f'{data_dir}/512x512-dataset-melanoma/512x512-dataset-melanoma/'
 test_image_path = f'{data_dir}/512x512-test/512x512-test'
-pseduo_df = pd.read_csv('submissions/test_936.csv')
+pseduo_df = pd.read_csv('submissions/test_946.csv')
 df = pd.read_csv(f'{data_dir}/folds.csv')
 meta_features = ['sex', 'age_approx', 'site_head/neck', 'site_lower extremity', 'site_oral/genital', 'site_palms/soles', 'site_torso', 'site_upper extremity', 'site_nan']
