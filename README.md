@@ -3,7 +3,7 @@ My scripts for the [SIIM-ISIC Melanoma Classification challenge 2020](https://ww
 
 ## Papers
 - [Skin lesion classification with ensemble of squeeze-and-excitation networks and semi-supervised learning](https://arxiv.org/abs/1809.02568)
-
+- [Self-training with Noisy Student improves ImageNet classification](https://arxiv.org/pdf/1911.04252.pdf)
 
 ## Resources
 - [Margin Focal Loss](https://www.kaggle.com/c/siim-isic-melanoma-classification/discussion/155201)
