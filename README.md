@@ -18,17 +18,6 @@ My scripts for the [SIIM-ISIC Melanoma Classification challenge 2020](https://ww
 - [Ugly Duckling Concept](https://www.kaggle.com/c/siim-isic-melanoma-classification/discussion/155348)
 - [Public Leaderboard Probing](https://www.kaggle.com/c/siim-isic-melanoma-classification/discussion/154624)
 - [Specialized Rank Loss for Maximizing *ROC_AUC*](https://www.kaggle.com/c/siim-isic-melanoma-classification/discussion/155201#872557)
-<<<<<<< HEAD
-=======
-
-## How to run
-- Run `git clone https://github.com/tahsin314/Melanoma_Classification_2020`
-- Download [this](https://www.kaggle.com/shonenkov/melanoma-merged-external-data-512x512-jpeg) dataset and extract the zip file.
-- In the `config.py` file change the `data_dir` variable to your data directory name.
-- Run `conda env create -f environment.yml`
-- Activate the newly created conda environment.
-- Run `train.py`. Change parameters according to your preferences from the `config.py` file before training.
->>>>>>> cb51d555846bb87770e622bf073167e120629b91
 
 ## How to run
 - Run `git clone https://github.com/tahsin314/Melanoma_Classification_2020`
