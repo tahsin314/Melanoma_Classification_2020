@@ -27,5 +27,20 @@ My scripts for the [SIIM-ISIC Melanoma Classification challenge 2020](https://ww
 - Activate the newly created conda environment.
 - Run `train.py`. Change parameters according to your preferences from the `config.py` file before training.
 
+### One important thing about EfficientNet
+EfficientNet's are designed to take in to account input image dimensions.
+
+So if you want to squeeze every last droplet from your model make sure to use same image resolutions as described below:
+
+```
+Efficientnet-B0 : 224
+Efficientnet-B1 : 240
+Efficientnet-B2 : 260
+Efficientnet-B3 : 300
+Efficientnet-B4 : 380
+Efficientnet-B5 : 456
+Efficientnet-B6 : 528
+Efficientnet-B7 : 600
+```
 
 **More resources will be added soon.**

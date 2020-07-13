@@ -19,10 +19,15 @@ from losses.arcface import ArcMarginProduct
 from efficientnet_pytorch import EfficientNet
 
 class EffNet(nn.Module):
-    def __init__(self, n_meta_features, pretrained_model='efficientnet-b4', use_meta=True):
+    def __init__(self, n_meta_features, pretrained_model='efficientnet-b4', use_meta=True, freeze_upto=1):
         super(EffNet, self).__init__()
         # Load imagenet pre-trained model 
         self.backbone = EfficientNet.from_pretrained(pretrained_model, in_channels=3).to('cuda:0')
+        self.num_named_param = 0
+        # Dirty way of finding out number of named params
+        for l, (name, param) in enumerate(self.backbone.named_parameters()):
+            self.num_named_param = l
+        self.freeze_upto_blocks(freeze_upto)
         in_features = self.backbone._fc.in_features
         self.backbone._fc = nn.Linear(in_features=in_features, out_features=500, bias=True)
         self.backbone._avg_pooling = GeM()
@@ -50,6 +55,18 @@ class EffNet(nn.Module):
         else:
             x = self.backbone(x)
             return x
+
+    def freeze_upto_blocks(self, n_blocks):
+        '''
+        Freezes upto bottom n_blocks
+        '''
+        if n_blocks == -1:
+            return
+
+        num_freeze_params = 6 + 12*n_blocks
+        for l, (name, param) in enumerate(self.backbone.named_parameters()):
+            if not 'bn' in name and l<=self.num_named_param-num_freeze_params:
+                param.requires_grad = False
 
 class EffNet_ArcFace(nn.Module):
     def __init__(self, n_meta_features, pretrained_model='efficientnet-b4', use_meta=True):

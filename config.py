@@ -23,23 +23,23 @@ from albumentations import (
 n_fold = 5
 fold = 0
 SEED = 24
-batch_size = 24
-sz = 384
+batch_size = 16
+sz = 512
 learning_rate = 2e-3
-patience = 4
+patience = 3
 accum_step = 48 // batch_size
 opts = ['normal', 'mixup', 'cutmix']
 choice_weights = [0.8, 0.1, 0.1]
 device = 'cuda:0'
-apex = False
-pretrained_model = 'efficientnet-b3'
+apex = True
+pretrained_model = 'efficientnet-b5'
 model_name = '{}_trial_stage1_fold_{}'.format(pretrained_model, fold)
 model_dir = 'model_dir'
 history_dir = 'history_dir'
-load_model = True
-
-if load_model and os.path.exists(os.path.join(history_dir, 'history_{}.csv'.format(model_name))):
-    history = pd.read_csv(os.path.join(history_dir, 'history_{}.csv'.format(model_name)))
+load_model = False
+freeze_upto = 1 #Freezes upto bottom n_blocks
+if load_model and os.path.exists(os.path.join(history_dir, f'history_{model_name}.csv')):
+    history = pd.read_csv(os.path.join(history_dir, f'history_{model_name}.csv'))
 else:
     history = pd.DataFrame()
 
@@ -47,8 +47,8 @@ imagenet_stats = ([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 n_epochs = 40
 TTA = 1
 balanced_sampler = False
-pseudo_lo_thr = 0.1
-pseudo_up_thr = 0.65
+pseudo_lo_thr = 0.10
+pseudo_up_thr = 0.70
 
 train_aug =Compose([
   ShiftScaleRotate(p=0.9,rotate_limit=180, border_mode= cv2.BORDER_REFLECT, value=[0, 0, 0], scale_limit=0.25),
