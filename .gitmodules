@@ -1,0 +1,3 @@
+[submodule "pytorch-lr-finder"]
+	path = pytorch-lr-finder
+	url = https://github.com/davidtvs/pytorch-lr-finder
