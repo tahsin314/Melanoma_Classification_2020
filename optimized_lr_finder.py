@@ -1,5 +1,5 @@
 import sys
-sys.path.insert(0, 'pytorch-lr-finder/torch_lr_finder/')
+sys.path.insert(0, 'pytorch-lr-finder/torch_lr_finder')
 from config import *
 import os
 import shutil
@@ -35,7 +35,7 @@ from optimizers import Over9000
 from model.seresnext import seresnext
 from model.effnet import EffNet, EffNet_ArcFace
 from config import *
-from torch_lr_finder import LRFinder
+from lr_finder import LRFinder
 prev_epoch_num = 0
 best_valid_loss = np.inf
 best_valid_auc = 0.0
@@ -88,8 +88,22 @@ plist = [
     ]
 
 optimizer = optim.Adam(plist, lr=learning_rate)
-criterion = criterion_margin_focal_binary_cross_entropy
+# lr_reduce_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=patience, verbose=True, threshold=1e-4, threshold_mode='rel', cooldown=0, min_lr=1e-7, eps=1e-08)
+# cyclic_scheduler = torch.optim.lr_scheduler.CyclicLR(optimizer, base_lr=learning_rate, max_lr=10*learning_rate, step_size_up=2000, step_size_down=2000, mode='triangular', gamma=1.0, scale_fn=None, scale_mode='cycle', cycle_momentum=False, base_momentum=0.8, max_momentum=0.9, last_epoch=-1)
 
+criterion = criterion_margin_focal_binary_cross_entropy
+if load_model:
+  tmp = torch.load(os.path.join(model_dir, model_name+'_loss.pth'))
+  model.load_state_dict(tmp['model'])
+  # optimizer.load_state_dict(tmp['optim'])
+  # lr_reduce_scheduler.load_state_dict(tmp['scheduler'])
+  # cyclic_scheduler.load_state_dict(tmp['cyclic_scheduler'])
+  # amp.load_state_dict(tmp['amp'])
+  prev_epoch_num = tmp['epoch']
+  best_valid_loss = tmp['best_loss']
+  del tmp
+  print('Model Loaded!')
+# model, optimizer = amp.initialize(model, optimizer, opt_level='O1')
 lr_finder = LRFinder(model, optimizer, criterion, device="cuda")
-lr_finder.range_test(train_loader, end_lr=100, num_iter=1000)
+lr_finder.range_test(train_loader, end_lr=100, num_iter=500,  accumulation_steps=accum_step)
 lr_finder.plot() # to inspect the loss-learning rate graph
