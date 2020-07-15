@@ -83,7 +83,7 @@ valid_loader = DataLoader(valid_ds, batch_size=batch_size, shuffle=True, num_wor
 test_ds = MelanomaDataset(test_df.path.values, test_meta, test_df.target.values, dim=sz, transforms=val_aug)
 test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=True, num_workers=4)
 
-def train_val(epoch, dataloader, rate=1, train=True, mode='train'):
+def train_val(epoch, dataloader, optimizer, choice_weights= [0.8, 0.1, 0.1], rate=1, train=True, mode='train'):
   t1 = time.time()
   running_loss = 0
   epoch_samples = 0
@@ -159,10 +159,8 @@ def train_val(epoch, dataloader, rate=1, train=True, mode='train'):
     auc = roc_auc_score(lab, pred)
     msg = f'{mode} Loss: {running_loss/(len(dataloader)):.4f} \n {mode} Auc: {auc:.4f}'
     print(msg)
+    return running_loss/(len(dataloader)), auc
 
-for epoch in range(prev_epoch_num, n_epochs):
-  train_val(epoch, train_loader, rate=1, train=True, mode='train')
-  train_val(epoch, valid_loader, rate=1, train=False, mode='valid')
 
 def train(epoch,history):
   t1 = time.time()
@@ -307,34 +305,59 @@ if load_model:
   # amp.load_state_dict(tmp['amp'])
   prev_epoch_num = tmp['epoch']
   best_valid_loss = tmp['best_loss']
-  best_valid_loss, best_valid_auc = evaluate(-1,history)
+  # best_valid_loss, best_valid_auc = evaluate(-1,history)
   del tmp
   print('Model Loaded!')
 
-
+valid_loss, valid_auc = train_val(-1, valid_loader, optimizer=optimizer, rate=1, train=False, mode='val')
 for epoch in range(prev_epoch_num, n_epochs):
-    torch.cuda.empty_cache()
-    print(gc.collect())
-    # stdscr = curses.initscr()
-    train(epoch,history)
-    valid_loss, valid_auc = evaluate(epoch,history)
-    if valid_loss<best_valid_loss:
-        print(f'Validation loss has decreased from:  {best_valid_loss:.4f} to: {valid_loss:.4f}. Saving checkpoint')
-        best_state = {'model': model.state_dict(), 'optim': optimizer.state_dict(), 'scheduler': lr_reduce_scheduler.state_dict(), 
-        # 'cyclic_scheduler':cyclic_scheduler.state_dict(), 
-        # 'amp': amp.state_dict(),
-         'best_loss':valid_loss, 'epoch':epoch}
-        torch.save(best_state, os.path.join(model_dir, model_name+'_loss.pth'))
-        torch.save(model.state_dict(), os.path.join(model_dir, '{}_model_weights_best_loss.pth'.format(model_name))) ## Saving model weights based on best validation accuracy.
-        best_valid_loss = valid_loss
-    if valid_auc>best_valid_auc:
-        print(f'Validation auc has increased from:  {best_valid_auc:.4f} to: {valid_auc:.4f}. Saving checkpoint')
-        best_state = {'model': model.state_dict(), 'optim': optimizer.state_dict(), 'scheduler': lr_reduce_scheduler.state_dict(), 
-        # 'cyclic_scheduler':cyclic_scheduler.state_dict(), 
-        # 'amp': amp.state_dict(),
-         'best_auc':valid_auc, 'epoch':epoch}
-        torch.save(best_state, os.path.join(model_dir, model_name+'_auc.pth'))
-        torch.save(model.state_dict(), os.path.join(model_dir, '{}_model_weights_best_auc.pth'.format(model_name))) ## Saving model weights based on best validation accuracy.
-        best_valid_auc = valid_auc 
+  torch.cuda.empty_cache()
+  print(gc.collect())
+  train_val(epoch, train_loader, optimizer=optimizer, choice_weights=choice_weights, rate=0.8, train=True, mode='train')
+  valid_loss, valid_auc = train_val(epoch, valid_loader, optimizer=optimizer, rate=1, train=False, mode='valid')
+
+  if valid_loss<best_valid_loss:
+    print(f'Validation loss has decreased from:  {best_valid_loss:.4f} to: {valid_loss:.4f}. Saving checkpoint')
+    best_state = {'model': model.state_dict(), 'optim': optimizer.state_dict(), 'scheduler': lr_reduce_scheduler.state_dict(), 
+    # 'cyclic_scheduler':cyclic_scheduler.state_dict(), 
+    # 'amp': amp.state_dict(),
+      'best_loss':valid_loss, 'epoch':epoch}
+    torch.save(best_state, os.path.join(model_dir, model_name+'_loss.pth'))
+    torch.save(model.state_dict(), os.path.join(model_dir, '{}_model_weights_best_loss.pth'.format(model_name))) ## Saving model weights based on best validation accuracy.
+    best_valid_loss = valid_loss
+  if valid_auc>best_valid_auc:
+    print(f'Validation auc has increased from:  {best_valid_auc:.4f} to: {valid_auc:.4f}. Saving checkpoint')
+    best_state = {'model': model.state_dict(), 'optim': optimizer.state_dict(), 'scheduler': lr_reduce_scheduler.state_dict(), 
+    # 'cyclic_scheduler':cyclic_scheduler.state_dict(), 
+    # 'amp': amp.state_dict(),
+      'best_auc':valid_auc, 'epoch':epoch}
+    torch.save(best_state, os.path.join(model_dir, model_name+'_auc.pth'))
+    torch.save(model.state_dict(), os.path.join(model_dir, '{}_model_weights_best_auc.pth'.format(model_name))) ## Saving model weights based on best validation accuracy.
+    best_valid_auc = valid_auc 
+
+# for epoch in range(prev_epoch_num, n_epochs):
+#     torch.cuda.empty_cache()
+#     print(gc.collect())
+#     # stdscr = curses.initscr()
+#     train(epoch,history)
+#     valid_loss, valid_auc = evaluate(epoch,history)
+#     if valid_loss<best_valid_loss:
+#         print(f'Validation loss has decreased from:  {best_valid_loss:.4f} to: {valid_loss:.4f}. Saving checkpoint')
+#         best_state = {'model': model.state_dict(), 'optim': optimizer.state_dict(), 'scheduler': lr_reduce_scheduler.state_dict(), 
+#         # 'cyclic_scheduler':cyclic_scheduler.state_dict(), 
+#         # 'amp': amp.state_dict(),
+#          'best_loss':valid_loss, 'epoch':epoch}
+#         torch.save(best_state, os.path.join(model_dir, model_name+'_loss.pth'))
+#         torch.save(model.state_dict(), os.path.join(model_dir, '{}_model_weights_best_loss.pth'.format(model_name))) ## Saving model weights based on best validation accuracy.
+#         best_valid_loss = valid_loss
+#     if valid_auc>best_valid_auc:
+#         print(f'Validation auc has increased from:  {best_valid_auc:.4f} to: {valid_auc:.4f}. Saving checkpoint')
+#         best_state = {'model': model.state_dict(), 'optim': optimizer.state_dict(), 'scheduler': lr_reduce_scheduler.state_dict(), 
+#         # 'cyclic_scheduler':cyclic_scheduler.state_dict(), 
+#         # 'amp': amp.state_dict(),
+#          'best_auc':valid_auc, 'epoch':epoch}
+#         torch.save(best_state, os.path.join(model_dir, model_name+'_auc.pth'))
+#         torch.save(model.state_dict(), os.path.join(model_dir, '{}_model_weights_best_auc.pth'.format(model_name))) ## Saving model weights based on best validation accuracy.
+#         best_valid_auc = valid_auc 
     
-    pseudo_loss, psudo_auc = evaluate(epoch,history, 'pseudo')
+#     pseudo_loss, psudo_auc = evaluate(epoch,history, 'pseudo')

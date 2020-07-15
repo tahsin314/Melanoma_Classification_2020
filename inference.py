@@ -82,7 +82,7 @@ test_df['path'] = test_df['image_name'].map(lambda x: os.path.join(test_image_pa
 test_df = meta_df(test_df, test_image_path)
 test_meta = np.array(test_df[meta_features].values, dtype=np.float32)
 
-model = EffNet_ArcFace(pretrained_model=pretrained_model, n_meta_features=len(meta_features)).to(device)
+model = EffNet(pretrained_model=pretrained_model, n_meta_features=len(meta_features)).to(device)
 
 test_ds = MelanomaDataset(image_ids=test_df.path.values, meta_features=test_meta, dim=sz, transforms=test_aug)
 test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False, num_workers=4)
