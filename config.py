@@ -45,7 +45,7 @@ else:
     history = pd.DataFrame()
 
 imagenet_stats = ([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-n_epochs = 40
+n_epochs = 60
 TTA = 1
 balanced_sampler = False
 pseudo_lo_thr = 0.10

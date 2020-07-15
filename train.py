@@ -151,15 +151,18 @@ def train_val(epoch, dataloader, rate=1, train=True, mode='train'):
       if train:
         msg = f"Epoch: {epoch} Progress: [{idx}/{len(dataloader)}] loss: {(running_loss/epoch_samples):.4f} Time: {elapsed}s ETA: {eta} s"
       else:
-        auc = roc_auc_score(lab, pred)
-        msg = '{} Loss: {:.4f} \n {} Auc: {:.4f} '.format(mode, running_loss/(len(dataloader)), mode, auc)
-        print(msg)
+        msg = f'Epoch {epoch} Progress: [{idx}/{len(dataloader)}] loss: {(running_loss/epoch_samples):.4f} Time: {elapsed}s ETA: {eta} s'
+      print(msg, end= '\r')
     
-    if mode=='val':
-      lr_reduce_scheduler.step(running_loss)
-      print(msg, end='\r')
-  return running_loss/epoch_samples
+  if mode=='val':
+    lr_reduce_scheduler.step(running_loss)
+    auc = roc_auc_score(lab, pred)
+    msg = f'{mode} Loss: {running_loss/(len(dataloader)):.4f} \n {mode} Auc: {auc:.4f}'
+    print(msg)
 
+for epoch in range(prev_epoch_num, n_epochs):
+  train_val(epoch, train_loader, rate=1, train=True, mode='train')
+  train_val(epoch, valid_loader, rate=1, train=False, mode='valid')
 
 def train(epoch,history):
   t1 = time.time()
@@ -298,8 +301,8 @@ if apex:
 if load_model:
   tmp = torch.load(os.path.join(model_dir, model_name+'_loss.pth'))
   model.load_state_dict(tmp['model'])
-  # optimizer.load_state_dict(tmp['optim'])
-  # lr_reduce_scheduler.load_state_dict(tmp['scheduler'])
+  optimizer.load_state_dict(tmp['optim'])
+  lr_reduce_scheduler.load_state_dict(tmp['scheduler'])
   # cyclic_scheduler.load_state_dict(tmp['cyclic_scheduler'])
   # amp.load_state_dict(tmp['amp'])
   prev_epoch_num = tmp['epoch']
