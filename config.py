@@ -22,11 +22,11 @@ from albumentations import (
     GaussNoise, Blur, MotionBlur, GaussianBlur, 
 )
 n_fold = 5
-fold = 0
+fold = 1
 SEED = 24
 batch_size = 8
-sz = 456
-learning_rate = 3e-4
+sz = 320
+learning_rate = 3e-3
 patience = 3
 accum_step = 48 // batch_size
 opts = ['normal', 'mixup', 'cutmix']
@@ -38,7 +38,7 @@ model_name = '{}_trial_stage1_fold_{}'.format(pretrained_model, fold)
 model_dir = 'model_dir'
 history_dir = 'history_dir'
 load_model = True
-freeze_upto = -1 # Freezes upto bottom n_blocks
+freeze_upto = 3 # Freezes upto bottom n_blocks
 if load_model and os.path.exists(os.path.join(history_dir, f'history_{model_name}.csv')):
     history = pd.read_csv(os.path.join(history_dir, f'history_{model_name}.csv'))
 else:

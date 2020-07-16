@@ -132,7 +132,7 @@ def ohem_loss(rate, base_crit, cls_pred, cls_target):
     # ohem_cls_loss = base_crit(cls_pred, cls_target, reduction='none', ignore_index=-1)
     ohem_cls_loss = base_crit(cls_pred, cls_target)
     if rate==1:
-        return ohem_cls_loss
+        return ohem_cls_loss.sum()
     sorted_ohem_loss, idx = torch.sort(ohem_cls_loss, descending=True)
     keep_num = min((sorted_ohem_loss.size())[0], int(batch_size*rate))
     if keep_num < sorted_ohem_loss.size()[0]:
