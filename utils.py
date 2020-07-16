@@ -141,22 +141,13 @@ def ohem_loss(rate, base_crit, cls_pred, cls_target):
     cls_loss = ohem_cls_loss.sum() / keep_num
     return cls_loss
 
-def save_model(valid_loss, valid_auc, best_valid_loss, best_valid_auc):
+def save_model(valid_loss, valid_auc, best_valid_loss, best_valid_auc, best_state, savepath):
     if valid_loss<best_valid_loss:
         print(f'Validation loss has decreased from:  {best_valid_loss:.4f} to: {valid_loss:.4f}. Saving checkpoint')
-        best_state = {'model': model.state_dict(), 'optim': optimizer.state_dict(), 'scheduler': lr_reduce_scheduler.state_dict(), 
-        'cyclic_scheduler':cyclic_scheduler.state_dict(), 
-        # 'amp': amp.state_dict(),
-        'best_loss':valid_loss, 'epoch':epoch}
-        torch.save(best_state, os.path.join(model_dir, model_name+'_loss.pth'))
-        torch.save(model.state_dict(), os.path.join(model_dir, '{}_model_weights_best_loss.pth'.format(model_name))) ## Saving model weights based on best validation accuracy.
+        torch.save(best_state, savepath+'_loss.pth')
         best_valid_loss = valid_loss
     if valid_auc>best_valid_auc:
         print(f'Validation auc has increased from:  {best_valid_auc:.4f} to: {valid_auc:.4f}. Saving checkpoint')
-        best_state = {'model': model.state_dict(), 'optim': optimizer.state_dict(), 'scheduler': lr_reduce_scheduler.state_dict(), 
-        # 'cyclic_scheduler':cyclic_scheduler.state_dict(), 
-        # 'amp': amp.state_dict(),
-        'best_auc':valid_auc, 'epoch':epoch}
-        torch.save(best_state, os.path.join(model_dir, model_name+'_auc.pth'))
-        torch.save(model.state_dict(), os.path.join(model_dir, '{}_model_weights_best_auc.pth'.format(model_name))) ## Saving model weights based on best validation accuracy.
+        torch.save(best_state, savepath + '_auc.pth')
         best_valid_auc = valid_auc
+    return best_valid_loss, best_valid_auc 

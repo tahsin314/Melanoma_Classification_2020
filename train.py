@@ -184,7 +184,7 @@ if load_model:
   # amp.load_state_dict(tmp['amp'])
   prev_epoch_num = tmp['epoch']
   best_valid_loss = tmp['best_loss']
-  # best_valid_loss, best_valid_auc = evaluate(-1,history)
+  best_valid_loss, best_valid_auc = evaluate(-1,history)
   del tmp
   print('Model Loaded!')
 
@@ -194,6 +194,8 @@ for epoch in range(prev_epoch_num, n_epochs):
   print(gc.collect())
   train_val(epoch, train_loader, optimizer=optimizer, choice_weights=choice_weights, rate=0.8, train=True, mode='train')
   valid_loss, valid_auc = train_val(epoch, valid_loader, optimizer=optimizer, rate=1, train=False, mode='val')
-
-  save_model(valid_loss, valid_auc, best_valid_loss, best_valid_auc)
+  best_state = {'model': model.state_dict(), 'optim': optimizer.state_dict(), 'scheduler':lr_reduce_scheduler.state_dict(), 'cyclic_scheduler':cyclic_scheduler.state_dict(), 
+        # 'amp': amp.state_dict(),
+  'best_loss':valid_loss, 'best_auc':valid_auc, 'epoch':epoch}
+  best_valid_loss, best_valid_auc = save_model(valid_loss, valid_auc, best_valid_loss, best_valid_auc, best_state, os.path.join(model_dir, model_name))
    
