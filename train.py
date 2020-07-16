@@ -50,11 +50,6 @@ X, y = df['image_id'], df['target']
 # train_df['fold'] = np.nan
 df = meta_df(df, image_path)
 pseduo_df = meta_df(pseduo_df, test_image_path)
-
-#split data
-# mskf = StratifiedKFold(n_splits=n_fold, shuffle=True, random_state=SEED)
-# for i, (_, test_index) in enumerate(mskf.split(X, y)):
-#     train_df.iloc[test_index, -1] = i
     
 df['fold'] = df['fold'].astype('int')
 idxs = [i for i in range(len(df))]
@@ -200,21 +195,5 @@ for epoch in range(prev_epoch_num, n_epochs):
   train_val(epoch, train_loader, optimizer=optimizer, choice_weights=choice_weights, rate=0.8, train=True, mode='train')
   valid_loss, valid_auc = train_val(epoch, valid_loader, optimizer=optimizer, rate=1, train=False, mode='val')
 
-  if valid_loss<best_valid_loss:
-    print(f'Validation loss has decreased from:  {best_valid_loss:.4f} to: {valid_loss:.4f}. Saving checkpoint')
-    best_state = {'model': model.state_dict(), 'optim': optimizer.state_dict(), 'scheduler': lr_reduce_scheduler.state_dict(), 
-    'cyclic_scheduler':cyclic_scheduler.state_dict(), 
-    # 'amp': amp.state_dict(),
-      'best_loss':valid_loss, 'epoch':epoch}
-    torch.save(best_state, os.path.join(model_dir, model_name+'_loss.pth'))
-    torch.save(model.state_dict(), os.path.join(model_dir, '{}_model_weights_best_loss.pth'.format(model_name))) ## Saving model weights based on best validation accuracy.
-    best_valid_loss = valid_loss
-  if valid_auc>best_valid_auc:
-    print(f'Validation auc has increased from:  {best_valid_auc:.4f} to: {valid_auc:.4f}. Saving checkpoint')
-    best_state = {'model': model.state_dict(), 'optim': optimizer.state_dict(), 'scheduler': lr_reduce_scheduler.state_dict(), 
-    # 'cyclic_scheduler':cyclic_scheduler.state_dict(), 
-    # 'amp': amp.state_dict(),
-      'best_auc':valid_auc, 'epoch':epoch}
-    torch.save(best_state, os.path.join(model_dir, model_name+'_auc.pth'))
-    torch.save(model.state_dict(), os.path.join(model_dir, '{}_model_weights_best_auc.pth'.format(model_name))) ## Saving model weights based on best validation accuracy.
-    best_valid_auc = valid_auc 
+  save_model(valid_loss, valid_auc, best_valid_loss, best_valid_auc)
+   
