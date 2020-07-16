@@ -42,5 +42,22 @@ Efficientnet-B5 : 456
 Efficientnet-B6 : 528
 Efficientnet-B7 : 600
 ```
+### What worked for me:
+- Focal loss
+- Meta Data
+- Hair Augmentation
+- EfficientNet 
+- Higher Image Dimensions
+- Freeze-Unfreeze Technique
+
+### What did not work for me:
+- Metric Loss
+- Microscope Augmentation
+- EfficientNet with Arcface
+- Progressive Resizing (It might have improved my score but I'm not so sure.)
+- Class Balanced Training
+
+
+
 
 **More resources will be added soon.**

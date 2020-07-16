@@ -178,21 +178,20 @@ if apex:
 if load_model:
   tmp = torch.load(os.path.join(model_dir, model_name+'_loss.pth'))
   model.load_state_dict(tmp['model'])
-  # optimizer.load_state_dict(tmp['optim'])
-  # lr_reduce_scheduler.load_state_dict(tmp['scheduler'])
-  # cyclic_scheduler.load_state_dict(tmp['cyclic_scheduler'])
+  optimizer.load_state_dict(tmp['optim'])
+  lr_reduce_scheduler.load_state_dict(tmp['scheduler'])
+  cyclic_scheduler.load_state_dict(tmp['cyclic_scheduler'])
   # amp.load_state_dict(tmp['amp'])
   prev_epoch_num = tmp['epoch']
   best_valid_loss = tmp['best_loss']
-  best_valid_loss, best_valid_auc = evaluate(-1,history)
+  best_valid_loss, best_valid_auc = train_val(-1, valid_loader, optimizer=optimizer, rate=1, train=False, mode='val')
   del tmp
   print('Model Loaded!')
 
-valid_loss, valid_auc = train_val(-1, valid_loader, optimizer=optimizer, rate=1, train=False, mode='val')
 for epoch in range(prev_epoch_num, n_epochs):
   torch.cuda.empty_cache()
   print(gc.collect())
-  train_val(epoch, train_loader, optimizer=optimizer, choice_weights=choice_weights, rate=0.8, train=True, mode='train')
+  train_val(epoch, train_loader, optimizer=optimizer, choice_weights=choice_weights, rate=1.0, train=True, mode='train')
   valid_loss, valid_auc = train_val(epoch, valid_loader, optimizer=optimizer, rate=1, train=False, mode='val')
   best_state = {'model': model.state_dict(), 'optim': optimizer.state_dict(), 'scheduler':lr_reduce_scheduler.state_dict(), 'cyclic_scheduler':cyclic_scheduler.state_dict(), 
         # 'amp': amp.state_dict(),
