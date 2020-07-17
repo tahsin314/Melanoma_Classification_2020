@@ -137,7 +137,7 @@ def train_val(epoch, dataloader, optimizer, choice_weights= [0.8, 0.1, 0.1], rat
         msg = f'Epoch {epoch} Progress: [{idx}/{len(dataloader)}] loss: {(running_loss/epoch_samples):.4f} Time: {elapsed}s ETA: {eta} s'
       print(msg, end= '\r')
   history.loc[epoch, f'{mode}_loss'] = running_loss/epoch_samples
-  history.loc[epoch, 'Time'] = elapsed  
+  history.loc[epoch, f'{mode}_time'] = elapsed  
   if mode=='val':
     lr_reduce_scheduler.step(running_loss)
     auc = roc_auc_score(lab, pred)
@@ -162,14 +162,10 @@ plist = [
 #     ]
 
 optimizer = optim.Adam(plist, lr=learning_rate)
-# scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, learning_rate, total_steps=None, epochs=n_epochs, steps_per_epoch=3348, pct_start=0.0,
-                                  #  anneal_strategy='cos', cycle_momentum=True,base_momentum=0.85, max_momentum=0.95,  div_factor=100.0)
 lr_reduce_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=patience, verbose=True, threshold=1e-4, threshold_mode='rel', cooldown=0, min_lr=1e-7, eps=1e-08)
 cyclic_scheduler = torch.optim.lr_scheduler.CyclicLR(optimizer, base_lr=learning_rate/10, max_lr=learning_rate, step_size_up=2*len(train_loader), step_size_down=2*len(train_loader), mode='triangular', gamma=1.0, scale_fn=None, scale_mode='cycle', cycle_momentum=False, base_momentum=0.8, max_momentum=0.9, last_epoch=-1)
-# criterion = nn.BCEWithLogitsLoss()
-# criterion = ArcFaceLoss()
-# criterion = FocalLoss(logits=True).to(device)
-# criterion = LabelSmoothing().to(device) 
+
+# nn.BCEWithLogitsLoss(), ArcFaceLoss(), FocalLoss(logits=True).to(device), LabelSmoothing().to(device) 
 criterion = criterion_margin_focal_binary_cross_entropy
 
 if apex:
@@ -178,9 +174,9 @@ if apex:
 if load_model:
   tmp = torch.load(os.path.join(model_dir, model_name+'_loss.pth'))
   model.load_state_dict(tmp['model'])
-  optimizer.load_state_dict(tmp['optim'])
-  lr_reduce_scheduler.load_state_dict(tmp['scheduler'])
-  cyclic_scheduler.load_state_dict(tmp['cyclic_scheduler'])
+  # optimizer.load_state_dict(tmp['optim'])
+  # lr_reduce_scheduler.load_state_dict(tmp['scheduler'])
+  # cyclic_scheduler.load_state_dict(tmp['cyclic_scheduler'])
   # amp.load_state_dict(tmp['amp'])
   prev_epoch_num = tmp['epoch']
   best_valid_loss = tmp['best_loss']
