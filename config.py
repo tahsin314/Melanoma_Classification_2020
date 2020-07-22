@@ -24,11 +24,11 @@ from albumentations import (
 n_fold = 5
 fold = 1
 SEED = 24
-batch_size = 8
+batch_size =10
 sz = 456
 learning_rate = 1e-4
 patience = 3
-accum_step = 48 // batch_size
+accum_step = 50 // batch_size
 opts = ['normal', 'mixup', 'cutmix']
 choice_weights = [0.8, 0.1, 0.1]
 device = 'cuda:0'

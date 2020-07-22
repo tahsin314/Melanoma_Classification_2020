@@ -126,7 +126,7 @@ def train_val(epoch, dataloader, optimizer, choice_weights= [0.8, 0.1, 0.1], rat
         if (idx+1) % accum_step == 0:
           optimizer.step()
           optimizer.zero_grad()
-          cyclic_scheduler.step()    
+          # cyclic_scheduler.step()    
       elapsed = int(time.time() - t1)
       eta = int(elapsed / (idx+1) * (len(dataloader)-(idx+1)))
       pred.extend(torch.softmax(outputs,1)[:,1].detach().cpu().numpy())
@@ -187,8 +187,8 @@ if load_model:
 for epoch in range(prev_epoch_num, n_epochs):
   torch.cuda.empty_cache()
   print(gc.collect())
-  train_val(epoch, train_loader, optimizer=optimizer, choice_weights=choice_weights, rate=1.0, train=True, mode='train')
-  valid_loss, valid_auc = train_val(epoch, valid_loader, optimizer=optimizer, rate=1, train=False, mode='val')
+  train_val(epoch, train_loader, optimizer=optimizer, choice_weights=choice_weights, rate=0.75, train=True, mode='train')
+  valid_loss, valid_auc = train_val(epoch, valid_loader, optimizer=optimizer, rate=1.00, train=False, mode='val')
   best_state = {'model': model.state_dict(), 'optim': optimizer.state_dict(), 'scheduler':lr_reduce_scheduler.state_dict(), 'cyclic_scheduler':cyclic_scheduler.state_dict(), 
         # 'amp': amp.state_dict(),
   'best_loss':valid_loss, 'best_auc':valid_auc, 'epoch':epoch}
