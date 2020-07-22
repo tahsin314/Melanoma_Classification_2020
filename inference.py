@@ -30,6 +30,35 @@ from model.effnet import EffNet, EffNet_ArcFace
 from config import *
 history = pd.DataFrame()
 test_aug = Compose([Normalize()])
+tta_aug1 = Compose([
+  ShiftScaleRotate(p=1,rotate_limit=180, border_mode= cv2.BORDER_REFLECT, value=[0, 0, 0], scale_limit=0.25),
+    Normalize(always_apply=True)])
+tta_aug2 = Compose([
+  Cutout(p=1.0, max_h_size=sz//16, max_w_size=sz//16, num_holes=10, fill_value=0),
+    Normalize(always_apply=True)])
+tta_aug3 = Compose([
+  RandomSizedCrop(min_max_height=(int(sz*0.8), int(sz*0.8)), height=sz, width=sz, p=1.0),
+    Normalize(always_apply=True)])
+tta_aug4 = Compose([
+  AdvancedHairAugmentationAlbumentations(p=1.0),
+    Normalize(always_apply=True)])
+tta_aug5 = Compose([
+  ShiftScaleRotate(p=1,rotate_limit=180, border_mode= cv2.BORDER_REFLECT, value=[0, 0, 0], scale_limit=0.25),
+    Normalize(always_apply=True)])
+tta_aug6 = Compose([
+  GaussianBlur(blur_limit=3, p=1),
+    Normalize(always_apply=True)])
+tta_aug7 = Compose([
+  HueSaturationValue(p=1.0),
+    Normalize(always_apply=True)])
+tta_aug8 = Compose([
+  HorizontalFlip(1.0),
+    Normalize(always_apply=True)])
+
+tta_aug9 = Compose([
+  VerticalFlip(1.0),
+    Normalize(always_apply=True)])
+
 tta_aug =Compose([
   ShiftScaleRotate(p=0.9,rotate_limit=180, border_mode= cv2.BORDER_REFLECT, value=[0, 0, 0], scale_limit=0.25),
     OneOf([
@@ -65,15 +94,17 @@ test_meta = np.array(test_df[meta_features].values, dtype=np.float32)
 
 model = EffNet(pretrained_model=pretrained_model, n_meta_features=len(meta_features)).to(device)
 
-test_ds = MelanomaDataset(image_ids=test_df.path.values, meta_features=test_meta, dim=sz, transforms=test_aug)
-test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False, num_workers=4)
 
+augs = [test_aug, tta_aug1, tta_aug2, tta_aug3, tta_aug4, tta_aug5, tta_aug6, tta_aug7, tta_aug8, tta_aug9]
 def evaluate():
    model.eval()
-   PREDS = np.zeros((len(test_loader.dataset), 1))
+   PREDS = np.zeros((len(test_df), 1))
    with torch.no_grad():
      for t in range(TTA):
       print('TTA {}'.format(t+1))
+      test_ds = MelanomaDataset(image_ids=test_df.path.values, meta_features=test_meta, dim=sz, transforms=augs[t])
+      test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False, num_workers=4)
+
       img_ids = []
       preds = []
       for idx, (img_id, inputs, meta) in T(enumerate(test_loader),total=len(test_loader)):
