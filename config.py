@@ -2,6 +2,19 @@ import os
 import cv2
 import pandas as pd
 import torch
+try:
+    import torch_xla.core.xla_model as xm
+    import torch_xla.distributed.parallel_loader as pl
+
+    _xla_available = True
+except ImportError:
+    _xla_available = False
+try:
+    from apex import amp
+
+    _apex_available = True
+except ImportError:
+    _apex_available = False
 from torch import optim
 from augmentations.augmix import RandomAugMix
 from augmentations.gridmask import GridMask
@@ -21,6 +34,7 @@ from albumentations import (
     RandomBrightnessContrast, Cutout, RandomGamma, ShiftScaleRotate ,
     GaussNoise, Blur, MotionBlur, GaussianBlur, 
 )
+tpu = True
 n_fold = 5
 fold = 1
 SEED = 24
@@ -32,6 +46,8 @@ accum_step = 50 // batch_size
 opts = ['normal', 'mixup', 'cutmix']
 choice_weights = [0.8, 0.1, 0.1]
 device = 'cuda:0'
+if tpu:
+    device = xm.xla_device()
 apex = False
 pretrained_model = 'efficientnet-b5'
 model_name = '{}_trial_stage1_fold_{}'.format(pretrained_model, fold)

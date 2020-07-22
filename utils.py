@@ -151,3 +151,6 @@ def save_model(valid_loss, valid_auc, best_valid_loss, best_valid_auc, best_stat
         torch.save(best_state, savepath + '_auc.pth')
         best_valid_auc = valid_auc
     return best_valid_loss, best_valid_auc 
+
+def reduce_fn(vals):
+    return sum(vals) / len(vals)
