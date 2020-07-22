@@ -5,7 +5,6 @@ import torch
 try:
     import torch_xla.core.xla_model as xm
     import torch_xla.distributed.parallel_loader as pl
-
     _xla_available = True
 except ImportError:
     _xla_available = False
@@ -46,14 +45,13 @@ accum_step = 50 // batch_size
 opts = ['normal', 'mixup', 'cutmix']
 choice_weights = [0.8, 0.1, 0.1]
 device = 'cuda:0'
-if tpu:
-    device = xm.xla_device()
+
 apex = False
 pretrained_model = 'efficientnet-b5'
 model_name = '{}_trial_stage1_fold_{}'.format(pretrained_model, fold)
 model_dir = 'model_dir'
 history_dir = 'history_dir'
-load_model = True
+load_model = False
 freeze_upto = -1 # Freezes upto bottom n_blocks
 if load_model and os.path.exists(os.path.join(history_dir, f'history_{model_name}.csv')):
     history = pd.read_csv(os.path.join(history_dir, f'history_{model_name}.csv'))
