@@ -11,6 +11,7 @@ from losses.arcface import ArcFaceLoss
 from losses.focal import criterion_margin_focal_binary_cross_entropy
 from model.seresnext import seresnext
 from model.effnet import EffNet, EffNet_ArcFace
+from utils import *
 from albumentations import (
     PadIfNeeded, HorizontalFlip, VerticalFlip, CenterCrop,    
     RandomCrop, Resize, Crop, Compose, HueSaturationValue,
@@ -21,30 +22,30 @@ from albumentations import (
     GaussNoise, Blur, MotionBlur, GaussianBlur, 
 )
 n_fold = 5
-fold = 0
+fold = 1
 SEED = 24
-batch_size = 16
-sz = 512
-learning_rate = 2e-3
+batch_size =10
+sz = 456
+learning_rate = 1e-4
 patience = 3
-accum_step = 48 // batch_size
+accum_step = 50 // batch_size
 opts = ['normal', 'mixup', 'cutmix']
 choice_weights = [0.8, 0.1, 0.1]
 device = 'cuda:0'
-apex = True
+apex = False
 pretrained_model = 'efficientnet-b5'
 model_name = '{}_trial_stage1_fold_{}'.format(pretrained_model, fold)
 model_dir = 'model_dir'
 history_dir = 'history_dir'
-load_model = False
-freeze_upto = 1 #Freezes upto bottom n_blocks
+load_model = True
+freeze_upto = -1 # Freezes upto bottom n_blocks
 if load_model and os.path.exists(os.path.join(history_dir, f'history_{model_name}.csv')):
     history = pd.read_csv(os.path.join(history_dir, f'history_{model_name}.csv'))
 else:
     history = pd.DataFrame()
 
 imagenet_stats = ([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-n_epochs = 40
+n_epochs = 60
 TTA = 1
 balanced_sampler = False
 pseudo_lo_thr = 0.10

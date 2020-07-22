@@ -60,29 +60,10 @@ test_df= test_df.sample(frac=1, random_state=SEED).reset_index(drop=True)
 test_image_path = 'data/512x512-test/512x512-test'
 test_df['path'] = test_df['image_name'].map(lambda x: os.path.join(test_image_path,'{}.jpg'.format(x)))
 
-# '''
-# Meta features: https://www.kaggle.com/nroman/melanoma-pytorch-starter-efficientnet
-# '''
-# # One-hot encoding of anatom_site_general_challenge feature
-# concat = test_df['anatom_site_general_challenge']
-# dummies = pd.get_dummies(concat, dummy_na=True, dtype=np.uint8, prefix='site')
-# test_df = pd.concat([test_df, dummies.iloc[:test_df.shape[0]]], axis=1)
-
-# # Sex features
-# test_df['sex'] = test_df['sex'].map({'male': 1, 'female': 0})
-# test_df['sex'] = test_df['sex'].fillna(-1)
-
-# # Age features
-# test_df['age_approx'] /= test_df['age_approx'].max()
-# test_df['age_approx'] = test_df['age_approx'].fillna(0)
-# test_df['patient_id'] = test_df['patient_id'].fillna(0)
-
-# meta_features = ['sex', 'age_approx'] + [col for col in test_df.columns if 'site_' in col]
-# meta_features.remove('anatom_site_general_challenge')
 test_df = meta_df(test_df, test_image_path)
 test_meta = np.array(test_df[meta_features].values, dtype=np.float32)
 
-model = EffNet_ArcFace(pretrained_model=pretrained_model, n_meta_features=len(meta_features)).to(device)
+model = EffNet(pretrained_model=pretrained_model, n_meta_features=len(meta_features)).to(device)
 
 test_ds = MelanomaDataset(image_ids=test_df.path.values, meta_features=test_meta, dim=sz, transforms=test_aug)
 test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False, num_workers=4)

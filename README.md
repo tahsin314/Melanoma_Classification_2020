@@ -5,6 +5,22 @@ My scripts for the [SIIM-ISIC Melanoma Classification challenge 2020](https://ww
 - [Skin lesion classification with ensemble of squeeze-and-excitation networks and semi-supervised learning](https://arxiv.org/abs/1809.02568)
 - [Self-training with Noisy Student improves ImageNet classification](https://arxiv.org/pdf/1911.04252.pdf)
 
+## Features
+- &#x2611; Meta Features
+
+- &#x2611; Balanced Sampler 
+
+- &#x2611; Mixed Precision
+
+- &#x2611; Gradient Accumulation  
+
+- &#x2611; Model freeze-unfreeze
+
+- &#x2611; Optimum Learning Rate Finder
+
+- &#x2611; ArcFace Loss
+
+
 ## Resources
 - [Margin Focal Loss](https://www.kaggle.com/c/siim-isic-melanoma-classification/discussion/155201)
 - [Meta Features](https://www.kaggle.com/nroman/melanoma-pytorch-starter-efficientnet)
@@ -42,5 +58,22 @@ Efficientnet-B5 : 456
 Efficientnet-B6 : 528
 Efficientnet-B7 : 600
 ```
+### What worked for me:
+- Focal loss
+- Meta Data
+- Hair Augmentation
+- EfficientNet 
+- Higher Image Dimensions
+- Freeze-Unfreeze Technique
+
+### What did not work for me:
+- Metric Loss
+- Microscope Augmentation
+- EfficientNet with Arcface
+- Progressive Resizing (It might have improved my score but I'm not so sure.)
+- Class Balanced Training
+
+
+
 
 **More resources will be added soon.**

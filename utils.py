@@ -132,7 +132,7 @@ def ohem_loss(rate, base_crit, cls_pred, cls_target):
     # ohem_cls_loss = base_crit(cls_pred, cls_target, reduction='none', ignore_index=-1)
     ohem_cls_loss = base_crit(cls_pred, cls_target)
     if rate==1:
-        return ohem_cls_loss
+        return ohem_cls_loss.sum()
     sorted_ohem_loss, idx = torch.sort(ohem_cls_loss, descending=True)
     keep_num = min((sorted_ohem_loss.size())[0], int(batch_size*rate))
     if keep_num < sorted_ohem_loss.size()[0]:
@@ -140,3 +140,14 @@ def ohem_loss(rate, base_crit, cls_pred, cls_target):
         ohem_cls_loss = ohem_cls_loss[keep_idx_cuda]
     cls_loss = ohem_cls_loss.sum() / keep_num
     return cls_loss
+
+def save_model(valid_loss, valid_auc, best_valid_loss, best_valid_auc, best_state, savepath):
+    if valid_loss<best_valid_loss:
+        print(f'Validation loss has decreased from:  {best_valid_loss:.4f} to: {valid_loss:.4f}. Saving checkpoint')
+        torch.save(best_state, savepath+'_loss.pth')
+        best_valid_loss = valid_loss
+    if valid_auc>best_valid_auc:
+        print(f'Validation auc has increased from:  {best_valid_auc:.4f} to: {valid_auc:.4f}. Saving checkpoint')
+        torch.save(best_state, savepath + '_auc.pth')
+        best_valid_auc = valid_auc
+    return best_valid_loss, best_valid_auc 
