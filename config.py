@@ -22,7 +22,7 @@ from albumentations import (
     GaussNoise, Blur, MotionBlur, GaussianBlur, 
 )
 n_fold = 5
-fold = 1
+fold = 0
 SEED = 24
 batch_size =10
 sz = 456
@@ -46,7 +46,7 @@ else:
 
 imagenet_stats = ([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 n_epochs = 60
-TTA = 1
+TTA = 10
 balanced_sampler = False
 pseudo_lo_thr = 0.10
 pseudo_up_thr = 0.70
