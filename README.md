@@ -1,4 +1,5 @@
 ## SIIM-ISIC Melanoma Classification
+#### *WARNING*: This branch was created targeting TPU but it has a lot of errors. Do run it on your own risk.
 My scripts for the [SIIM-ISIC Melanoma Classification challenge 2020](https://www.kaggle.com/c/siim-isic-melanoma-classification/).
 
 ## Papers
