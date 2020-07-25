@@ -36,10 +36,11 @@ class MelanomaDataset(Dataset):
         image_id = self.image_ids[idx]
         image = cv2.imread(image_id, cv2.IMREAD_COLOR)
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        image = cv2.resize(image, (self.dim, self.dim), interpolation = cv2.INTER_AREA)
+        image = cv2.resize(image, (self.dim, self.dim))
         self.gen_challenge = np.zeros(7)
         self.gen_challenge[self.meta_features[idx][-1].astype('int')+1] = 1
         meta = self.meta_features[idx][:-1]
+        meta[1] /= 100.0
         meta = np.hstack((meta, self.gen_challenge))
         # image = image.astype(np.float32) / 255.0
 

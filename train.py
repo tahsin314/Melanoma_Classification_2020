@@ -57,12 +57,12 @@ train_folds = [0, 1, 2, 3, 5, 6, 7, 8, 10, 11, 12, 13, 15, 16]
 valid_folds = [4, 9, 14]
 train_df = df[df['fold'] == train_folds[0]]
 valid_df = df[df['fold'] == valid_folds[0]]
+
+train_df = pd.concat([train_df, pseduo_df], ignore_index=True)
 for i in train_folds[1:]:
   train_df = pd.concat([train_df, df[df['fold'] == i]])
 for i in valid_folds[1:]:
   valid_df = pd.concat([valid_df, df[df['fold'] == i]])
-
-train_df = pd.concat([train_df, pseduo_df], ignore_index=True)
 test_df = pseduo_df
 train_meta = np.array(train_df[meta_features].values, dtype=np.float32)
 valid_meta = np.array(valid_df[meta_features].values, dtype=np.float32)
@@ -131,7 +131,7 @@ def train_val(epoch, dataloader, optimizer, choice_weights= [0.8, 0.1, 0.1], rat
         if (idx+1) % accum_step == 0:
           optimizer.step()
           optimizer.zero_grad()
-          cyclic_scheduler.step()    
+          # cyclic_scheduler.step()    
       elapsed = int(time.time() - t1)
       eta = int(elapsed / (idx+1) * (len(dataloader)-(idx+1)))
       pred.extend(torch.softmax(outputs,1)[:,1].detach().cpu().numpy())
@@ -159,12 +159,6 @@ plist = [
         {'params': model.meta_fc.parameters(),  'lr': learning_rate},
         {'params': model.output.parameters(),  'lr': learning_rate},
     ]
-# Effnet_Arcface model
-# plist = [
-#         {'params': model.backbone.parameters(),  'lr': learning_rate/50},
-#         {'params': model.meta_fc.parameters(),  'lr': learning_rate},
-#         {'params': model.metric_classify.parameters(),  'lr': learning_rate},
-#     ]
 
 optimizer = optim.Adam(plist, lr=learning_rate)
 lr_reduce_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=patience, verbose=True, threshold=1e-4, threshold_mode='rel', cooldown=0, min_lr=1e-7, eps=1e-08)
@@ -194,8 +188,12 @@ for epoch in range(prev_epoch_num, n_epochs):
   print(gc.collect())
   train_val(epoch, train_loader, optimizer=optimizer, choice_weights=choice_weights, rate=1.00, train=True, mode='train')
   valid_loss, valid_auc = train_val(epoch, valid_loader, optimizer=optimizer, rate=1.00, train=False, mode='val')
+  print("#"*20)
+  print(f"Epoch {epoch} Report:")
+  print(f"Validation Loss: {valid_loss :.4f} \n Validation AUC: {valid_auc :.4f}")
   best_state = {'model': model.state_dict(), 'optim': optimizer.state_dict(), 'scheduler':lr_reduce_scheduler.state_dict(), 'cyclic_scheduler':cyclic_scheduler.state_dict(), 
         # 'amp': amp.state_dict(),
   'best_loss':valid_loss, 'best_auc':valid_auc, 'epoch':epoch}
   best_valid_loss, best_valid_auc = save_model(valid_loss, valid_auc, best_valid_loss, best_valid_auc, best_state, os.path.join(model_dir, model_name))
+  print("#"*20)
    

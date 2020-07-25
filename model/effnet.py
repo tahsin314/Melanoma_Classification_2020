@@ -29,19 +29,19 @@ class EffNet(nn.Module):
             self.num_named_param = l
         self.freeze_upto_blocks(freeze_upto)
         in_features = self.backbone._fc.in_features
-        self.backbone._fc = nn.Linear(in_features=in_features, out_features=500, bias=True)
+        self.backbone._fc = nn.Linear(in_features=in_features, out_features=600, bias=True)
         self.backbone._avg_pooling = GeM()
         self.use_meta = use_meta
         if self.use_meta:
-            self.meta_fc = nn.Sequential(nn.Linear(n_meta_features, 500),
-                                  nn.BatchNorm1d(500),
+            self.meta_fc = nn.Sequential(nn.Linear(n_meta_features, 600),
+                                  nn.BatchNorm1d(600),
                                   nn.ReLU(),
-                                  nn.Dropout(p=0.2),
-                                  nn.Linear(500, 100),  # FC layer output will have 250 features
-                                  nn.BatchNorm1d(100),
+                                  nn.Dropout(p=0.3),
+                                  nn.Linear(600, 150),  # FC layer output will have 250 features
+                                  nn.BatchNorm1d(150),
                                   nn.ReLU(),
-                                  nn.Dropout(p=0.2))
-            self.output = nn.Linear(500 + 100, 2)
+                                  nn.Dropout(p=0.4))
+            self.output = nn.Linear(600 + 150, 2)
         else:
             self.backbone._fc = nn.Linear(in_features=in_features, out_features=2, bias=True)
         
