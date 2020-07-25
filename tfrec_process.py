@@ -49,12 +49,13 @@ def tfrec_extract(filename):
         savedir = train_dir
     else:savedir = test_dir
     dataset = TFRecordDataset(tfrecord_path, index_path, transform=decode_image)
-    loader = torch.utils.data.DataLoader(dataset, batch_size=1)
-    for data in loader:
+    loader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=False)
+    for data in T(loader):
+        # print(len(loader))
         if 'train' in filename:
             train_row += 1
         else: test_row += 1
-        img_name = data['image_name'].squeeze().data.cpu().numpy()
+        img_name = data['image_name'].squeeze().data.cpu().numpy().copy()
         img_name = os.path.join(savedir, ''.join(map(chr, img_name)))
         img_name += '.jpg'
         image_file = data['image'].squeeze().data.cpu().numpy()
@@ -63,9 +64,11 @@ def tfrec_extract(filename):
         del data['image_name']
         for k, v in data.items():
             if 'train' in filename:
+                train.loc[train_row, 'image_name'] = img_name
                 train.loc[train_row, k] = v.squeeze().data.cpu().numpy()
                 train.loc[train_row, 'tfrec'] = filename.replace('.tfrec', '')
             else:
+                test.loc[test_row, 'image_name'] = img_name
                 test.loc[test_row, k] = v.squeeze().data.cpu().numpy()
                 test.loc[test_row, 'tfrec'] = filename.replace('.tfrec', '')
 
@@ -76,3 +79,4 @@ for f in T(filelist):
 
 train.to_csv(f"{data_dir}/train_768.csv", index=False)
 test.to_csv(f"{data_dir}/test_768.csv", index=False)
+print(f"total {train_row} train images and {test_row} test images")

@@ -19,10 +19,10 @@ from losses.arcface import ArcMarginProduct
 from efficientnet_pytorch import EfficientNet
 
 class EffNet(nn.Module):
-    def __init__(self, n_meta_features, pretrained_model='efficientnet-b4', use_meta=True, freeze_upto=1):
+    def __init__(self, n_meta_features=9, pretrained_model='efficientnet-b4', use_meta=True, freeze_upto=1):
         super(EffNet, self).__init__()
         # Load imagenet pre-trained model 
-        self.backbone = EfficientNet.from_pretrained(pretrained_model, in_channels=3).to('cuda:0')
+        self.backbone = EfficientNet.from_pretrained(pretrained_model, in_channels=3)
         self.num_named_param = 0
         # Dirty way of finding out number of named params
         for l, (name, param) in enumerate(self.backbone.named_parameters()):
@@ -37,11 +37,11 @@ class EffNet(nn.Module):
                                   nn.BatchNorm1d(500),
                                   nn.ReLU(),
                                   nn.Dropout(p=0.2),
-                                  nn.Linear(500, 250),  # FC layer output will have 250 features
-                                  nn.BatchNorm1d(250),
+                                  nn.Linear(500, 100),  # FC layer output will have 250 features
+                                  nn.BatchNorm1d(100),
                                   nn.ReLU(),
                                   nn.Dropout(p=0.2))
-            self.output = nn.Linear(500 + 250, 2)
+            self.output = nn.Linear(500 + 100, 2)
         else:
             self.backbone._fc = nn.Linear(in_features=in_features, out_features=2, bias=True)
         

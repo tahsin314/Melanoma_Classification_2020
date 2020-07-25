@@ -39,43 +39,48 @@ balanced_sampler = False
 np.random.seed(SEED)
 os.makedirs(model_dir, exist_ok=True)
 os.makedirs(history_dir, exist_ok=True)
-pseduo_df = pseudo_label_df(pseduo_df, pseudo_lo_thr, pseudo_up_thr)
+pseduo_df = rank_based_pseudo_label_df(pseduo_df, 'data/test_768', 3000, 150)
 pseudo_labels = list(pseduo_df['target'])
 print("Pseudo data length: {}".format(len(pseduo_df)))
 print("Negative label: {}, Positive label: {}".format(pseudo_labels.count(0), pseudo_labels.count(1))) 
-df = pd.read_csv('data/folds.csv')
+df = pd.read_csv('data/train_768.csv')
+
 pseduo_df['fold'] = np.nan
-pseduo_df['fold'] = pseduo_df['fold'].map(lambda x: n_fold)
-X, y = df['image_id'], df['target']
-# train_df['fold'] = np.nan
-df = meta_df(df, image_path)
-pseduo_df = meta_df(pseduo_df, test_image_path)
+pseduo_df['fold'] = pseduo_df['fold'].map(lambda x: 16)
+# pseduo_df = meta_df(pseduo_df, test_image_path)
     
 df['fold'] = df['fold'].astype('int')
 idxs = [i for i in range(len(df))]
 train_idx = []
 val_idx = []
-train_df = df[df['fold'] != fold]
+train_folds = [0, 1, 2, 3, 5, 6, 7, 8, 10, 11, 12, 13, 15, 16]
+valid_folds = [4, 9, 14]
+train_df = df[df['fold'] == train_folds[0]]
+valid_df = df[df['fold'] == valid_folds[0]]
+for i in train_folds[1:]:
+  train_df = pd.concat([train_df, df[df['fold'] == i]])
+for i in valid_folds[1:]:
+  valid_df = pd.concat([valid_df, df[df['fold'] == i]])
+
 train_df = pd.concat([train_df, pseduo_df], ignore_index=True)
-valid_df = df[(df['fold'] == fold) & (df['source'] == 'ISIC20')]
 test_df = pseduo_df
 train_meta = np.array(train_df[meta_features].values, dtype=np.float32)
 valid_meta = np.array(valid_df[meta_features].values, dtype=np.float32)
 test_meta = np.array(test_df[meta_features].values, dtype=np.float32)
 # model = seresnext(pretrained_model).to(device)
-model = EffNet(pretrained_model=pretrained_model, n_meta_features=train_meta.shape[1], freeze_upto=freeze_upto).to(device)
+model = EffNet(pretrained_model=pretrained_model, freeze_upto=freeze_upto).to(device)
 
-train_ds = MelanomaDataset(train_df.path.values, train_meta, train_df.target.values, dim=sz, transforms=train_aug)
+train_ds = MelanomaDataset(train_df.image_name.values, train_meta, train_df.target.values, dim=sz, transforms=train_aug)
 if balanced_sampler:
   print('Using Balanced Sampler....')
   train_loader = DataLoader(train_ds,batch_size=batch_size, sampler=BalanceClassSampler(labels=train_ds.get_labels(), mode="downsampling"), shuffle=False, num_workers=4)
 else:
   train_loader = DataLoader(train_ds,batch_size=batch_size, shuffle=True, num_workers=4)
 
-valid_ds = MelanomaDataset(valid_df.path.values, valid_meta, valid_df.target.values, dim=sz, transforms=val_aug)
+valid_ds = MelanomaDataset(valid_df.image_name.values, valid_meta, valid_df.target.values, dim=sz, transforms=val_aug)
 valid_loader = DataLoader(valid_ds, batch_size=batch_size, shuffle=True, num_workers=4)
 
-test_ds = MelanomaDataset(test_df.path.values, test_meta, test_df.target.values, dim=sz, transforms=val_aug)
+test_ds = MelanomaDataset(test_df.image_name.values, test_meta, test_df.target.values, dim=sz, transforms=val_aug)
 test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=True, num_workers=4)
 
 def train_val(epoch, dataloader, optimizer, choice_weights= [0.8, 0.1, 0.1], rate=1, train=True, mode='train'):
@@ -126,7 +131,7 @@ def train_val(epoch, dataloader, optimizer, choice_weights= [0.8, 0.1, 0.1], rat
         if (idx+1) % accum_step == 0:
           optimizer.step()
           optimizer.zero_grad()
-          # cyclic_scheduler.step()    
+          cyclic_scheduler.step()    
       elapsed = int(time.time() - t1)
       eta = int(elapsed / (idx+1) * (len(dataloader)-(idx+1)))
       pred.extend(torch.softmax(outputs,1)[:,1].detach().cpu().numpy())
@@ -187,7 +192,7 @@ if load_model:
 for epoch in range(prev_epoch_num, n_epochs):
   torch.cuda.empty_cache()
   print(gc.collect())
-  train_val(epoch, train_loader, optimizer=optimizer, choice_weights=choice_weights, rate=0.75, train=True, mode='train')
+  train_val(epoch, train_loader, optimizer=optimizer, choice_weights=choice_weights, rate=1.00, train=True, mode='train')
   valid_loss, valid_auc = train_val(epoch, valid_loader, optimizer=optimizer, rate=1.00, train=False, mode='val')
   best_state = {'model': model.state_dict(), 'optim': optimizer.state_dict(), 'scheduler':lr_reduce_scheduler.state_dict(), 'cyclic_scheduler':cyclic_scheduler.state_dict(), 
         # 'amp': amp.state_dict(),
