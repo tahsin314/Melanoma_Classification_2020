@@ -53,7 +53,7 @@ class MelanomaDataset(Dataset):
             target = self.labels[idx]
             return image, meta.astype('float32'), onehot(2, target)
         else:
-            return image_id, image, meta.astype('float')
+            return image_id, image, meta.astype('float32')
 
     def __len__(self):
         return len(self.image_ids)

@@ -43,19 +43,16 @@ tta_aug4 = Compose([
   AdvancedHairAugmentationAlbumentations(p=1.0),
     Normalize(always_apply=True)])
 tta_aug5 = Compose([
-  ShiftScaleRotate(p=1,rotate_limit=180, border_mode= cv2.BORDER_REFLECT, value=[0, 0, 0], scale_limit=0.25),
-    Normalize(always_apply=True)])
-tta_aug6 = Compose([
   GaussianBlur(blur_limit=3, p=1),
     Normalize(always_apply=True)])
-tta_aug7 = Compose([
+tta_aug6 = Compose([
   HueSaturationValue(p=1.0),
     Normalize(always_apply=True)])
-tta_aug8 = Compose([
+tta_aug7 = Compose([
   HorizontalFlip(1.0),
     Normalize(always_apply=True)])
 
-tta_aug9 = Compose([
+tta_aug8 = Compose([
   VerticalFlip(1.0),
     Normalize(always_apply=True)])
 
@@ -63,46 +60,35 @@ tta_aug =Compose([
   ShiftScaleRotate(p=0.9,rotate_limit=180, border_mode= cv2.BORDER_REFLECT, value=[0, 0, 0], scale_limit=0.25),
     OneOf([
     Cutout(p=0.3, max_h_size=sz//16, max_w_size=sz//16, num_holes=10, fill_value=0),
-    # GridMask(num_grid=7, p=0.7, fill_value=0)
     ], p=0.20),
     RandomSizedCrop(min_max_height=(int(sz*0.8), int(sz*0.8)), height=sz, width=sz, p=0.5),
-    # RandomAugMix(severity=1, width=1, alpha=1., p=0.3),
-    # OneOf([
-    #     ElasticTransform(p=0.1, alpha=1, sigma=50, alpha_affine=30,border_mode=cv2.BORDER_CONSTANT,value =0),
-    #     GridDistortion(distort_limit =0.05 ,border_mode=cv2.BORDER_CONSTANT,value =0, p=0.1),
-    #     OpticalDistortion(p=0.1, distort_limit= 0.05, shift_limit=0.2,border_mode=cv2.BORDER_CONSTANT,value =0)                  
-    #     ], p=0.3),
-    # OneOf([
-    #     GaussNoise(var_limit=0.02),
-    #     # Blur(),
-    #     GaussianBlur(blur_limit=3),
-    #     RandomGamma(p=0.8),
-    #     ], p=0.5),
     HueSaturationValue(p=0.4),
     HorizontalFlip(0.4),
     VerticalFlip(0.4),
     Normalize(always_apply=True)
     ]
       )
-test_df = pd.read_csv('data/test.csv')
-test_df= test_df.sample(frac=1, random_state=SEED).reset_index(drop=True)
-test_image_path = 'data/512x512-test/512x512-test'
-test_df['path'] = test_df['image_name'].map(lambda x: os.path.join(test_image_path,'{}.jpg'.format(x)))
-
-test_df = meta_df(test_df, test_image_path)
+test_df = pd.read_csv('data/test_768.csv')
+test_image_path = 'data/test_768'
+test_df['anatom_site_general_challenge'] = test_df['anatom_site_general_challenge'].fillna(-1)
+# Sex features
+test_df['sex'] = test_df['sex'].fillna(-1)
+test_df['age_approx'] = test_df['age_approx'].fillna(0)
+test_df['patient_id'] = test_df['patient_id'].fillna(0)
 test_meta = np.array(test_df[meta_features].values, dtype=np.float32)
 
-model = EffNet(pretrained_model=pretrained_model, n_meta_features=len(meta_features)).to(device)
+model = EffNet(pretrained_model=pretrained_model).to(device)
 
 
-augs = [test_aug, tta_aug1, tta_aug2, tta_aug3, tta_aug4, tta_aug5, tta_aug6, tta_aug7, tta_aug8, tta_aug9]
+# augs = [test_aug, tta_aug1, tta_aug2, tta_aug3, tta_aug4, tta_aug5, tta_aug6, tta_aug7, tta_aug8, tta_aug9]
+augs = [test_aug, tta_aug1, tta_aug3, tta_aug6, tta_aug7, tta_aug8]
 def evaluate():
    model.eval()
    PREDS = np.zeros((len(test_df), 1))
    with torch.no_grad():
      for t in range(TTA):
       print('TTA {}'.format(t+1))
-      test_ds = MelanomaDataset(image_ids=test_df.path.values, meta_features=test_meta, dim=sz, transforms=augs[t])
+      test_ds = MelanomaDataset(image_ids=test_df.index.values, meta_features=test_meta, dim=sz, transforms=augs[t])
       test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False, num_workers=4)
 
       img_ids = []

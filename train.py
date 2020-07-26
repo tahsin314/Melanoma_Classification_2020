@@ -18,8 +18,6 @@ from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import roc_auc_score
 from apex import amp
 import torch, torchvision
-from torchsummary import summary
-from torch.utils.tensorboard import SummaryWriter
 from torch import optim
 from torch.nn import functional as F
 from torch.utils.data import Dataset,DataLoader
@@ -146,12 +144,12 @@ def train_val(epoch, dataloader, optimizer, choice_weights= [0.8, 0.1, 0.1], rat
   if mode=='val':
     lr_reduce_scheduler.step(running_loss)
     auc = roc_auc_score(lab, pred)
-    msg = f'{mode} Loss: {running_loss/(len(dataloader)):.4f} \n {mode} Auc: {auc:.4f}'
+    msg = f'{mode} Loss: {running_loss/epoch_samples:.4f} \n {mode} Auc: {auc:.4f}'
     print(msg)
     history.loc[epoch, f'{mode}_loss'] = running_loss/epoch_samples
     history.loc[epoch, f'{mode}_auc'] = auc
     history.to_csv(f'history_{model_name}.csv', index=False)
-    return running_loss/(len(dataloader)), auc
+    return running_loss/epoch_samples, auc
 
 # Effnet model
 plist = [ 

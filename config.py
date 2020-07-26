@@ -24,11 +24,11 @@ from albumentations import (
 n_fold = 5
 fold = 0
 SEED = 24
-batch_size = 10
-sz = 320
-learning_rate = 1e-3
+batch_size = 6
+sz = 528
+learning_rate = 1e-4
 patience = 3
-accum_step = 40 // batch_size
+accum_step = 42 // batch_size
 opts = ['normal', 'mixup', 'cutmix']
 choice_weights = [0.8, 0.1, 0.1]
 device = 'cuda:0'
@@ -37,8 +37,8 @@ pretrained_model = 'efficientnet-b6'
 model_name = '{}_trial_stage1_fold_{}'.format(pretrained_model, fold)
 model_dir = 'model_dir'
 history_dir = 'history_dir'
-load_model = False
-freeze_upto = 3 # Freezes upto bottom n_blocks
+load_model = True
+freeze_upto = -1 # Freezes upto bottom n_blocks
 if load_model and os.path.exists(os.path.join(history_dir, f'history_{model_name}.csv')):
     history = pd.read_csv(os.path.join(history_dir, f'history_{model_name}.csv'))
 else:
@@ -46,7 +46,7 @@ else:
 
 imagenet_stats = ([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 n_epochs = 60
-TTA = 10
+TTA = 6
 balanced_sampler = False
 pseudo_lo_thr = 0.10
 pseudo_up_thr = 0.70

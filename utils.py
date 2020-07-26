@@ -29,7 +29,6 @@ def rank_based_pseudo_label_df(df, image_path, top=3000, bottom=150):
     # Sex features
     df['sex'] = df['sex'].map({'male': 0, 'female': 1})
     df['sex'] = df['sex'].fillna(-1)
-    df['sex'] = df['sex'].fillna(-1)
     # Age features
     # df['age_approx'] /= df['age_approx'].max()
     df['age_approx'] = df['age_approx'].fillna(0)
