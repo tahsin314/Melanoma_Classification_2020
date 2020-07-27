@@ -7,6 +7,7 @@ from augmentations.augmix import RandomAugMix
 from augmentations.gridmask import GridMask
 from augmentations.hair import Hair, AdvancedHairAugmentationAlbumentations
 from augmentations.microscope import MicroscopeAlbumentations
+from augmentations.color_constancy import ColorConstancy
 from losses.arcface import ArcFaceLoss
 from losses.focal import criterion_margin_focal_binary_cross_entropy
 from model.seresnext import seresnext
@@ -46,7 +47,7 @@ else:
 
 imagenet_stats = ([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 n_epochs = 60
-TTA = 6
+TTA = 1
 balanced_sampler = False
 pseudo_lo_thr = 0.10
 pseudo_up_thr = 0.70
@@ -75,6 +76,7 @@ train_aug =Compose([
     HueSaturationValue(p=0.4),
     HorizontalFlip(0.4),
     VerticalFlip(0.4),
+    ColorConstancy(p=0.5),
     Normalize(always_apply=True)
     ]
       )

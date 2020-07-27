@@ -22,12 +22,21 @@ def visualize(original_image):
         ax.imshow(aug_img, cmap='gray')
     fig.savefig('aug.png')
 
-train_df = pd.read_csv('data/folds.csv')
-train_df = meta_df(train_df)
-train_df['path'] = train_df['image_id'].map(lambda x: os.path.join(image_path,'{}.jpg'.format(x)))
+# train_df = pd.read_csv('data/folds.csv')
+# train_df = meta_df(train_df, 'data/train_768')
+# train_df['path'] = train_df['image_id'].map(lambda x: os.path.join(image_path,'{}.jpg'.format(x)))
+# train_meta = np.array(train_df[meta_features].values, dtype=np.float32)
+train_df = pd.read_csv('data/train_768.csv')
+train_image_path = 'data/train_768'
+train_df['anatom_site_general_challenge'] = train_df['anatom_site_general_challenge'].fillna(-1)
+# Sex features
+train_df['sex'] = train_df['sex'].fillna(-1)
+train_df['age_approx'] = train_df['age_approx'].fillna(0)
+train_df['patient_id'] = train_df['patient_id'].fillna(0)
 train_meta = np.array(train_df[meta_features].values, dtype=np.float32)
-train_ds = MelanomaDataset(train_df.path.values, train_meta, train_df.target.values, dim=512, transforms=train_aug)
-train_loader = DataLoader(train_ds,batch_size=64, shuffle=True, num_workers=4)
+
+train_ds = MelanomaDataset(train_df.image_name.values, train_meta, train_df.target.values, dim=528, transforms=train_aug)
+train_loader = DataLoader(train_ds,batch_size=64, shuffle=False, num_workers=4)
 im, _, _ = iter(train_loader).next()
 # print(im.size(), torch.max(denorm(im)))
-save_image(im.float(), 'Aug.png', nrow=8, padding=2, normalize=True, range=None, scale_each=False, pad_value=0)
+save_image(im.float(), 'Aug2.png', nrow=8, padding=2, normalize=True, range=None, scale_each=False, pad_value=0)
