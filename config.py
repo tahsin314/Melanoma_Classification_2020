@@ -25,16 +25,16 @@ from albumentations import (
 n_fold = 5
 fold = 0
 SEED = 24
-batch_size = 6
-sz = 528
-learning_rate = 1e-4
+batch_size = 24
+sz = 352
+learning_rate = 2e-5
 patience = 3
-accum_step = 42 // batch_size
+accum_step = 48 // batch_size
 opts = ['normal', 'mixup', 'cutmix']
-choice_weights = [0.8, 0.1, 0.1]
+choice_weights = [1.0, 0.0, 0.0]
 device = 'cuda:0'
-apex = False
-pretrained_model = 'efficientnet-b6'
+apex = True
+pretrained_model = 'efficientnet-b4'
 model_name = '{}_trial_stage1_fold_{}'.format(pretrained_model, fold)
 model_dir = 'model_dir'
 history_dir = 'history_dir'
@@ -47,7 +47,7 @@ else:
 
 imagenet_stats = ([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 n_epochs = 60
-TTA = 1
+TTA = 6
 balanced_sampler = False
 pseudo_lo_thr = 0.10
 pseudo_up_thr = 0.70
@@ -60,7 +60,7 @@ train_aug =Compose([
     ], p=0.20),
     RandomSizedCrop(min_max_height=(int(sz*0.8), int(sz*0.8)), height=sz, width=sz, p=0.5),
     AdvancedHairAugmentationAlbumentations(p=0.3),
-    MicroscopeAlbumentations(0.25),
+    MicroscopeAlbumentations(0.1),
     # RandomAugMix(severity=1, width=1, alpha=1., p=0.3),
     # OneOf([
     #     ElasticTransform(p=0.1, alpha=1, sigma=50, alpha_affine=30,border_mode=cv2.BORDER_CONSTANT,value =0),
@@ -84,7 +84,7 @@ val_aug = Compose([Normalize(always_apply=True)])
 data_dir = 'data'
 image_path = f'{data_dir}/train_768'
 test_image_path = f'{data_dir}/test_768'
-pseduo_df = pd.read_csv('submissions/test_958.csv')
+pseduo_df = pd.read_csv('submissions/sub_958.csv')
 # df = pd.read_csv(f'{data_dir}/folds.csv')
 gen_challenge = {'lower extremity': 2, 'torso':3, 'head/neck':0, 'oral/genital':5, 'palms/soles':4, 'upper extremity':1}
 # meta_features = ['sex', 'age_approx', 'site_head/neck', 'site_lower extremity', 'site_oral/genital', 'site_palms/soles', 'site_torso', 'site_upper extremity', 'site_nan']

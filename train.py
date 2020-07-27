@@ -37,12 +37,11 @@ balanced_sampler = False
 np.random.seed(SEED)
 os.makedirs(model_dir, exist_ok=True)
 os.makedirs(history_dir, exist_ok=True)
-pseduo_df = rank_based_pseudo_label_df(pseduo_df, 'data/test_768', 3000, 150)
+pseduo_df = rank_based_pseudo_label_df(pseduo_df, 0.2, 0.99)
 pseudo_labels = list(pseduo_df['target'])
 print("Pseudo data length: {}".format(len(pseduo_df)))
 print("Negative label: {}, Positive label: {}".format(pseudo_labels.count(0), pseudo_labels.count(1))) 
 df = pd.read_csv('data/train_768.csv')
-
 pseduo_df['fold'] = np.nan
 pseduo_df['fold'] = pseduo_df['fold'].map(lambda x: 16)
 # pseduo_df = meta_df(pseduo_df, test_image_path)
@@ -67,7 +66,6 @@ valid_meta = np.array(valid_df[meta_features].values, dtype=np.float32)
 test_meta = np.array(test_df[meta_features].values, dtype=np.float32)
 # model = seresnext(pretrained_model).to(device)
 model = EffNet(pretrained_model=pretrained_model, freeze_upto=freeze_upto).to(device)
-
 train_ds = MelanomaDataset(train_df.image_name.values, train_meta, train_df.target.values, dim=sz, transforms=train_aug)
 if balanced_sampler:
   print('Using Balanced Sampler....')

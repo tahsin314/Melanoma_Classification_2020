@@ -43,7 +43,7 @@ balanced_sampler = False
 np.random.seed(SEED)
 os.makedirs(model_dir, exist_ok=True)
 os.makedirs(history_dir, exist_ok=True)
-pseduo_df = rank_based_pseudo_label_df(pseduo_df, 'data/test_768', 3000, 150)
+pseduo_df = rank_based_pseudo_label_df(pseduo_df, 0.2, 0.99)
 pseudo_labels = list(pseduo_df['target'])
 print("Pseudo data length: {}".format(len(pseduo_df)))
 print("Negative label: {}, Positive label: {}".format(pseudo_labels.count(0), pseudo_labels.count(1))) 

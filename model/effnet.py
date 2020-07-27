@@ -37,11 +37,11 @@ class EffNet(nn.Module):
                                   nn.BatchNorm1d(600),
                                   nn.ReLU(),
                                   nn.Dropout(p=0.3),
-                                  nn.Linear(600, 150),  # FC layer output will have 250 features
-                                  nn.BatchNorm1d(150),
+                                  nn.Linear(600, 200),  # FC layer output will have 750 features
+                                  nn.BatchNorm1d(200),
                                   nn.ReLU(),
                                   nn.Dropout(p=0.4))
-            self.output = nn.Linear(600 + 150, 2)
+            self.output = nn.Linear(600 + 200, 2)
         else:
             self.backbone._fc = nn.Linear(in_features=in_features, out_features=2, bias=True)
         

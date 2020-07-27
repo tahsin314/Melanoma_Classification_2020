@@ -68,13 +68,13 @@ tta_aug =Compose([
     Normalize(always_apply=True)
     ]
       )
-test_df = pd.read_csv('data/test_768.csv')
+test_df = pd.read_csv('test_768v2.csv')
 test_image_path = 'data/test_768'
-test_df['anatom_site_general_challenge'] = test_df['anatom_site_general_challenge'].fillna(-1)
-# Sex features
-test_df['sex'] = test_df['sex'].fillna(-1)
-test_df['age_approx'] = test_df['age_approx'].fillna(0)
-test_df['patient_id'] = test_df['patient_id'].fillna(0)
+# test_df['anatom_site_general_challenge'] = test_df['anatom_site_general_challenge'].fillna(-1)
+# # Sex features
+# test_df['sex'] = test_df['sex'].fillna(-1)
+# test_df['age_approx'] = test_df['age_approx'].fillna(0)
+# test_df['patient_id'] = test_df['patient_id'].fillna(0)
 test_meta = np.array(test_df[meta_features].values, dtype=np.float32)
 
 model = EffNet(pretrained_model=pretrained_model).to(device)
@@ -88,7 +88,7 @@ def evaluate():
    with torch.no_grad():
      for t in range(TTA):
       print('TTA {}'.format(t+1))
-      test_ds = MelanomaDataset(image_ids=test_df.index.values, meta_features=test_meta, dim=sz, transforms=augs[t])
+      test_ds = MelanomaDataset(image_ids=test_df.image_name.values, meta_features=test_meta, dim=sz, transforms=augs[t])
       test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False, num_workers=4)
 
       img_ids = []
@@ -105,7 +105,7 @@ def evaluate():
    return img_ids, list(PREDS[:, 0])
 
 if load_model:
-  tmp = torch.load(os.path.join(model_dir, model_name+'_auc.pth'))
+  tmp = torch.load(os.path.join(model_dir, model_name+'_loss.pth'))
   model.load_state_dict(tmp['model'])
   print("Best Loss: {:4f}".format(tmp['best_auc']))
   del tmp

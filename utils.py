@@ -21,32 +21,15 @@ def pseudo_label_df(df, lo_th=0.1, up_th=0.8):
     df['target'] = df['prediction'].astype('int')
     return df
 
-def rank_based_pseudo_label_df(df, image_path, top=3000, bottom=150):
+def rank_based_pseudo_label_df(df, lo_th=0.1, up_th=0.8):
     df['prediction'] = df['prediction'].astype('float')
-    # df.sort_values(by=['prediction'], inplace=True)
-    df['anatom_site_general_challenge'] = df['anatom_site_general_challenge'].map(gen_challenge)
-    df['anatom_site_general_challenge'] = df['anatom_site_general_challenge'].fillna(-1)
-    # Sex features
-    df['sex'] = df['sex'].map({'male': 0, 'female': 1})
-    df['sex'] = df['sex'].fillna(-1)
-    # Age features
-    # df['age_approx'] /= df['age_approx'].max()
-    df['age_approx'] = df['age_approx'].fillna(0)
-    df['patient_id'] = df['patient_id'].fillna(0)
-    top_val = df['prediction'][top]
-    bottom_val = df['prediction'][len(df)-bottom]
-    
-    df = df.drop(df[(df.prediction> top_val) & (df.prediction < bottom_val)].index)
+    df['prediction'] = df['prediction'].rank()/df['prediction'].rank().max()
     pred = df['prediction'].copy()
-    pred[pred<=top_val] = 0
-    pred[pred>=bottom_val] = 1
+    pred[pred<lo_th] = 0
+    pred[pred>up_th] = 1
     df['prediction'] = pred
+    df = df.drop(df[(df.prediction> 0) & (df.prediction < 1)].index)
     df['target'] = df['prediction'].astype('int')
-
-    try:
-        df['image_name'] = df['image_id'].map(lambda x: os.path.join(image_path,'{}.jpg'.format(x)))
-    except:
-        df['image_name'] = df['image_name'].map(lambda x: os.path.join(image_path,'{}.jpg'.format(x)))
     return df
 
 def meta_df(df, image_path):

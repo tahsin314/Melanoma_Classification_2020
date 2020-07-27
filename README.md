@@ -64,14 +64,15 @@ Efficientnet-B7 : 600
 - Hair Augmentation
 - EfficientNet 
 - Higher Image Dimensions
-- Freeze-Unfreeze Technique
+- Progressive Resizing (It might have improved my score but I'm not so sure.)
 
 ### What did not work for me:
 - Metric Loss
 - Microscope Augmentation
 - EfficientNet with Arcface
-- Progressive Resizing (It might have improved my score but I'm not so sure.)
+- Freeze-Unfreeze Technique
 - Class Balanced Training
+- Cutmix and Mixup
 
 
 
