@@ -25,15 +25,15 @@ from albumentations import (
 n_fold = 5
 fold = 0
 SEED = 24
-batch_size = 24
-sz = 352
+batch_size = 12
+sz = 512
 learning_rate = 2e-5
 patience = 3
 accum_step = 48 // batch_size
 opts = ['normal', 'mixup', 'cutmix']
 choice_weights = [1.0, 0.0, 0.0]
 device = 'cuda:0'
-apex = True
+apex = False
 pretrained_model = 'efficientnet-b4'
 model_name = '{}_trial_stage1_fold_{}'.format(pretrained_model, fold)
 model_dir = 'model_dir'
@@ -47,7 +47,7 @@ else:
 
 imagenet_stats = ([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 n_epochs = 60
-TTA = 6
+TTA = 7
 balanced_sampler = False
 pseudo_lo_thr = 0.10
 pseudo_up_thr = 0.70

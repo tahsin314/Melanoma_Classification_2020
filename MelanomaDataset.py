@@ -51,7 +51,7 @@ class MelanomaDataset(Dataset):
             image = image.reshape(self.dim, self.dim, 3).transpose(2, 0, 1)
         if self.labels is not None:
             target = self.labels[idx]
-            return image, meta.astype('float32'), onehot(2, target)
+            return image_id, image, meta.astype('float32'), onehot(2, target)
         else:
             return image_id, image, meta.astype('float32')
 

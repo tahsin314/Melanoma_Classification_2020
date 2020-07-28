@@ -56,6 +56,10 @@ tta_aug8 = Compose([
   VerticalFlip(1.0),
     Normalize(always_apply=True)])
 
+tta_aug9 = Compose([
+  ColorConstancy(p=1.0),
+    Normalize(always_apply=True)])
+
 tta_aug =Compose([
   ShiftScaleRotate(p=0.9,rotate_limit=180, border_mode= cv2.BORDER_REFLECT, value=[0, 0, 0], scale_limit=0.25),
     OneOf([
@@ -70,18 +74,12 @@ tta_aug =Compose([
       )
 test_df = pd.read_csv('test_768v2.csv')
 test_image_path = 'data/test_768'
-# test_df['anatom_site_general_challenge'] = test_df['anatom_site_general_challenge'].fillna(-1)
-# # Sex features
-# test_df['sex'] = test_df['sex'].fillna(-1)
-# test_df['age_approx'] = test_df['age_approx'].fillna(0)
-# test_df['patient_id'] = test_df['patient_id'].fillna(0)
 test_meta = np.array(test_df[meta_features].values, dtype=np.float32)
 
 model = EffNet(pretrained_model=pretrained_model).to(device)
 
-
 # augs = [test_aug, tta_aug1, tta_aug2, tta_aug3, tta_aug4, tta_aug5, tta_aug6, tta_aug7, tta_aug8, tta_aug9]
-augs = [test_aug, tta_aug1, tta_aug3, tta_aug6, tta_aug7, tta_aug8]
+augs = [test_aug, tta_aug1, tta_aug3, tta_aug6, tta_aug7, tta_aug8, tta_aug9]
 def evaluate():
    model.eval()
    PREDS = np.zeros((len(test_df), 1))

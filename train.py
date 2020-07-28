@@ -91,7 +91,7 @@ def train_val(epoch, dataloader, optimizer, choice_weights= [0.8, 0.1, 0.1], rat
   else:
     model.eval()
     print("Initiating val phase ...")
-  for idx, (inputs,meta,labels) in enumerate(dataloader):
+  for idx, (_, inputs,meta,labels) in enumerate(dataloader):
     with torch.set_grad_enabled(train):
       inputs = inputs.to(device)
       meta = meta.to(device)
@@ -179,17 +179,20 @@ if load_model:
   del tmp
   print('Model Loaded!')
 
-for epoch in range(prev_epoch_num, n_epochs):
-  torch.cuda.empty_cache()
-  print(gc.collect())
-  train_val(epoch, train_loader, optimizer=optimizer, choice_weights=choice_weights, rate=1.00, train=True, mode='train')
-  valid_loss, valid_auc = train_val(epoch, valid_loader, optimizer=optimizer, rate=1.00, train=False, mode='val')
-  print("#"*20)
-  print(f"Epoch {epoch} Report:")
-  print(f"Validation Loss: {valid_loss :.4f} \n Validation AUC: {valid_auc :.4f}")
-  best_state = {'model': model.state_dict(), 'optim': optimizer.state_dict(), 'scheduler':lr_reduce_scheduler.state_dict(), 'cyclic_scheduler':cyclic_scheduler.state_dict(), 
-        # 'amp': amp.state_dict(),
-  'best_loss':valid_loss, 'best_auc':valid_auc, 'epoch':epoch}
-  best_valid_loss, best_valid_auc = save_model(valid_loss, valid_auc, best_valid_loss, best_valid_auc, best_state, os.path.join(model_dir, model_name))
-  print("#"*20)
+def main():
+  for epoch in range(prev_epoch_num, n_epochs):
+    torch.cuda.empty_cache()
+    print(gc.collect())
+    train_val(epoch, train_loader, optimizer=optimizer, choice_weights=choice_weights, rate=1.00, train=True, mode='train')
+    valid_loss, valid_auc = train_val(epoch, valid_loader, optimizer=optimizer, rate=1.00, train=False, mode='val')
+    print("#"*20)
+    print(f"Epoch {epoch} Report:")
+    print(f"Validation Loss: {valid_loss :.4f} \n Validation AUC: {valid_auc :.4f}")
+    best_state = {'model': model.state_dict(), 'optim': optimizer.state_dict(), 'scheduler':lr_reduce_scheduler.state_dict(), 'cyclic_scheduler':cyclic_scheduler.state_dict(), 
+          # 'amp': amp.state_dict(),
+    'best_loss':valid_loss, 'best_auc':valid_auc, 'epoch':epoch}
+    best_valid_loss, best_valid_auc = save_model(valid_loss, valid_auc, best_valid_loss, best_valid_auc, best_state, os.path.join(model_dir, model_name))
+    print("#"*20)
    
+if __name__== '__main__':
+  main()
