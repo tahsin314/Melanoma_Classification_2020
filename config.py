@@ -25,7 +25,7 @@ from albumentations import (
 n_fold = 5
 fold = 0
 SEED = 24
-batch_size = 16
+batch_size = 32
 sz = 512
 learning_rate = 1e-3
 patience = 3

@@ -187,7 +187,8 @@ def train_val(epoch, dataloader, optimizer, device, model, criterion, choice_wei
         msg = f"Epoch: {epoch} Progress: [{idx}/{len(dataloader)}] loss: {(running_loss/epoch_samples):.4f} Time: {elapsed}s ETA: {eta} s"
       else:
         msg = f'Epoch {epoch} Progress: [{idx}/{len(dataloader)}] loss: {(running_loss/epoch_samples):.4f} Time: {elapsed}s ETA: {eta} s'
-      xm.master_print(msg)
+      # xm.master_print(msg)
+      tk0.set_postfix_str(msg)
   history.loc[epoch, f'{mode}_loss'] = running_loss/epoch_samples
   history.loc[epoch, f'{mode}_time'] = elapsed  
   if mode=='val':
