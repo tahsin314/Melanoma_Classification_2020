@@ -184,9 +184,9 @@ def train_val(epoch, dataloader, optimizer, device, model, criterion, choice_wei
       pred.extend(torch.softmax(outputs,1)[:,1].detach().cpu().numpy())
       lab.extend(torch.argmax(labels, 1).cpu().numpy())
       if train:
-        msg = f"Epoch: {epoch} Progress: [{idx}/{len(dataloader)}] loss: {(running_loss/epoch_samples):.4f} Time: {elapsed}s ETA: {eta} s"
+        msg = f"Epoch: {epoch} loss: {(running_loss/epoch_samples):.4f}"
       else:
-        msg = f'Epoch {epoch} Progress: [{idx}/{len(dataloader)}] loss: {(running_loss/epoch_samples):.4f} Time: {elapsed}s ETA: {eta} s'
+        msg = f'Epoch {epoch} loss: {(running_loss/epoch_samples):.4f}'
       # xm.master_print(msg)
       tk0.set_postfix_str(msg)
   history.loc[epoch, f'{mode}_loss'] = running_loss/epoch_samples
