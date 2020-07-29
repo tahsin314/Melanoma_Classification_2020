@@ -35,28 +35,23 @@ def rank_based_pseudo_label_df(df, lo_th=0.1, up_th=0.8):
     df['target'] = df['prediction'].astype('int')
     return df
 
-def meta_df(df, image_path):
+def meta_df(df):
     '''
     Meta features: https://www.kaggle.com/nroman/melanoma-pytorch-starter-efficientnet
     '''
     # One-hot encoding of anatom_site_general_challenge feature
-    concat = df['anatom_site_general_challenge']
-    dummies = pd.get_dummies(concat, dummy_na=True, dtype=np.uint8, prefix='site')
-    df = pd.concat([df, dummies.iloc[:df.shape[0]]], axis=1)
+    # concat = df['anatom_site_general_challenge']
+    # dummies = pd.get_dummies(concat, dummy_na=True, dtype=np.uint8, prefix='site')
+    # df = pd.concat([df, dummies.iloc[:df.shape[0]]], axis=1)
 
     # Sex features
-    df['sex'] = df['sex'].map({'male': 1, 'female': 0})
+    # df['sex'] = df['sex'].map({'male': 1, 'female': 0})
     df['sex'] = df['sex'].fillna(-1)
 
     # Age features
     # df['age_approx'] /= df['age_approx'].max()
     df['age_approx'] = df['age_approx'].fillna(0)
     df['patient_id'] = df['patient_id'].fillna(0)
-    try:
-        df['path'] = df['image_id'].map(lambda x: os.path.join(image_path,'{}.jpg'.format(x)))
-    except:
-        df['path'] = df['image_name'].map(lambda x: os.path.join(image_path,'{}.jpg'.format(x)))
-
     return df
 
 class UnNormalize(object):

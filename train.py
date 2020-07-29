@@ -39,7 +39,10 @@ np.random.seed(SEED)
 os.makedirs(model_dir, exist_ok=True)
 os.makedirs(history_dir, exist_ok=True)
 df = pd.read_csv('data/train_768.csv')
-    
+df = meta_df(df)
+df.drop(['width', 'height'], axis=1, inplace=True)
+print(df.head(10))
+# print(df[df.isna().any(axis=1)])
 df['fold'] = df['fold'].astype('int')
 idxs = [i for i in range(len(df))]
 train_idx = []
@@ -53,6 +56,8 @@ for i in train_folds[1:]:
   train_df = pd.concat([train_df, df[df['fold'] == i]])
 for i in valid_folds[1:]:
   valid_df = pd.concat([valid_df, df[df['fold'] == i]])
+
+
 # test_df = pseduo_df
 train_meta = np.array(train_df[meta_features].values, dtype=np.float32)
 valid_meta = np.array(valid_df[meta_features].values, dtype=np.float32)
@@ -112,8 +117,8 @@ def Engine_Tahsin():
   for epoch in range(prev_epoch_num, n_epochs):
     torch.cuda.empty_cache()
     print(gc.collect())
-    model = train_val(epoch, train_loader, optimizer=optimizer, device=device, model=model, criterion=criterion, choice_weights=choice_weights, rate=1.00, train=True, mode='train')
-    valid_loss, valid_auc = train_val(epoch, valid_loader, optimizer=optimizer, device=device, model=model, criterion=criterion, rate=1.00, train=False, mode='val')
+    model = train_val(epoch, train_loader, optimizer=optimizer, device=device, model=model, criterion=criterion, lr_reduce_scheduler=lr_reduce_scheduler, choice_weights=choice_weights, rate=1.00, train=True, mode='train')
+    valid_loss, valid_auc = train_val(epoch, valid_loader, optimizer=optimizer, device=device, model=model, criterion=criterion, lr_reduce_scheduler=lr_reduce_scheduler, rate=1.00, train=False, mode='val')
     print("#"*20)
     print(f"Epoch {epoch} Report:")
     print(f"Validation Loss: {valid_loss :.4f} \n Validation AUC: {valid_auc :.4f}")
@@ -123,7 +128,7 @@ def Engine_Tahsin():
     best_valid_loss, best_valid_auc = save_model(valid_loss, valid_auc, best_valid_loss, best_valid_auc, best_state, os.path.join(model_dir, model_name))
     print("#"*20)
 
-def train_val(epoch, dataloader, optimizer, device, model, criterion, choice_weights= [0.8, 0.1, 0.1], rate=1, train=True, mode='train'):
+def train_val(epoch, dataloader, optimizer, device, model, criterion, lr_reduce_scheduler, choice_weights= [0.8, 0.1, 0.1], rate=1, train=True, mode='train'):
   t1 = time.time()
   running_loss = 0
   epoch_samples = 0
