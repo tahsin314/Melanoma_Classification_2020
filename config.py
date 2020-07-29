@@ -25,20 +25,20 @@ from albumentations import (
 n_fold = 5
 fold = 0
 SEED = 24
-batch_size = 12
+batch_size = 16
 sz = 512
-learning_rate = 2e-5
+learning_rate = 1e-3
 patience = 3
 accum_step = 48 // batch_size
 opts = ['normal', 'mixup', 'cutmix']
 choice_weights = [1.0, 0.0, 0.0]
 device = 'cuda:0'
-apex = False
-pretrained_model = 'efficientnet-b4'
+mixed_precision = True
+pretrained_model = 'efficientnet-b5'
 model_name = '{}_trial_stage1_fold_{}'.format(pretrained_model, fold)
 model_dir = 'model_dir'
 history_dir = 'history_dir'
-load_model = True
+load_model = False
 freeze_upto = -1 # Freezes upto bottom n_blocks
 if load_model and os.path.exists(os.path.join(history_dir, f'history_{model_name}.csv')):
     history = pd.read_csv(os.path.join(history_dir, f'history_{model_name}.csv'))

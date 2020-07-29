@@ -16,7 +16,6 @@ import cv2
 from tqdm import tqdm as T
 from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import roc_auc_score
-from apex import amp
 import torch, torchvision
 from torch import optim
 from torch.nn import functional as F
@@ -30,6 +29,8 @@ from optimizers import Over9000
 from model.seresnext import seresnext
 from model.effnet import EffNet, EffNet_ArcFace
 from config import *
+
+scaler = torch.cuda.amp.GradScaler() 
 prev_epoch_num = 0
 best_valid_loss = np.inf
 best_valid_auc = 0.0
@@ -101,33 +102,35 @@ def train_val(epoch, dataloader, optimizer, choice_weights= [0.8, 0.1, 0.1], rat
         choice_weights = [1.0, 0, 0]
       choice = choices(opts, weights=choice_weights)
       optimizer.zero_grad()
-      if choice[0] == 'normal':
-        outputs = model(inputs.float(), meta)
-        loss = ohem_loss(rate, criterion, outputs, labels)
-        running_loss += loss.item()
-      
-      elif choice[0] == 'mixup':
-        inputs, targets = mixup(inputs, labels, np.random.uniform(0.8, 1.0))
-        outputs = model(inputs.float(), meta)
-        loss = mixup_criterion(outputs, targets, criterion=criterion, rate=rate)
-        running_loss += loss.item()
-      
-      elif choice[0] == 'cutmix':
-        inputs, targets = cutmix(inputs, labels, np.random.uniform(0.8, 1.0))
-        outputs = model(inputs.float(), meta)
-        loss = cutmix_criterion(outputs, targets, criterion=criterion, rate=rate)
-        running_loss += loss.item()
+      with torch.cuda.amp.autocast(mixed_precision):
+        if choice[0] == 'normal':
+          outputs = model(inputs.float(), meta)
+          loss = ohem_loss(rate, criterion, outputs, labels)
+          running_loss += loss.item()
+        
+        elif choice[0] == 'mixup':
+          inputs, targets = mixup(inputs, labels, np.random.uniform(0.8, 1.0))
+          outputs = model(inputs.float(), meta)
+          loss = mixup_criterion(outputs, targets, criterion=criterion, rate=rate)
+          running_loss += loss.item()
+        
+        elif choice[0] == 'cutmix':
+          inputs, targets = cutmix(inputs, labels, np.random.uniform(0.8, 1.0))
+          outputs = model(inputs.float(), meta)
+          loss = cutmix_criterion(outputs, targets, criterion=criterion, rate=rate)
+          running_loss += loss.item()
       if train:
-        if apex:
-          with amp.scale_loss(loss, optimizer) as scaled_loss:
-            scaled_loss.backward()
+        if mixed_precision:
+          scaler.scale(loss).backward()
+          if (idx+1) % accum_step == 0:
+            scaler.step(optimizer) 
+            scaler.update() 
         else:
           loss.backward()
-        
-        if (idx+1) % accum_step == 0:
-          optimizer.step()
-          optimizer.zero_grad()
-          # cyclic_scheduler.step()    
+          if (idx+1) % accum_step == 0:
+            optimizer.step()
+            optimizer.zero_grad()
+            # cyclic_scheduler.step()    
       elapsed = int(time.time() - t1)
       eta = int(elapsed / (idx+1) * (len(dataloader)-(idx+1)))
       pred.extend(torch.softmax(outputs,1)[:,1].detach().cpu().numpy())
@@ -162,9 +165,6 @@ cyclic_scheduler = torch.optim.lr_scheduler.CyclicLR(optimizer, base_lr=learning
 
 # nn.BCEWithLogitsLoss(), ArcFaceLoss(), FocalLoss(logits=True).to(device), LabelSmoothing().to(device) 
 criterion = criterion_margin_focal_binary_cross_entropy
-
-if apex:
-    amp.initialize(model, optimizer, opt_level='O1')
 
 if load_model:
   tmp = torch.load(os.path.join(model_dir, model_name+'_loss.pth'))
