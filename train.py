@@ -34,9 +34,6 @@ import torch_xla.distributed.xla_multiprocessing as xmp
 import torch_xla.core.xla_model as xm
 from config import *
 
-prev_epoch_num = 0
-best_valid_loss = np.inf
-best_valid_auc = 0.0
 balanced_sampler = False
 np.random.seed(SEED)
 os.makedirs(model_dir, exist_ok=True)
@@ -66,7 +63,7 @@ def Engine_Tahsin():
   device = xm.xla_device()
   model = EffNet(pretrained_model=pretrained_model, freeze_upto=freeze_upto)
   model = model.to(device)
-  train_loader = MelanomaDataLoader(train_df.image_name.values, train_meta, train_df.target.values, 384, train_aug).fetch(
+  train_loader = MelanomaDataLoader(train_df.image_name.values, train_meta, train_df.target.values, sz, train_aug).fetch(
           batch_size=batch_size, 
           drop_last=True, 
           num_workers=0, 
@@ -74,7 +71,7 @@ def Engine_Tahsin():
           tpu=True
       )
 
-  valid_loader = MelanomaDataLoader(valid_df.image_name.values, valid_meta, valid_df.target.values, 384, train_aug).fetch(
+  valid_loader = MelanomaDataLoader(valid_df.image_name.values, valid_meta, valid_df.target.values, sz, train_aug).fetch(
           batch_size=batch_size, 
           drop_last=True, 
           num_workers=0, 
@@ -108,12 +105,15 @@ def Engine_Tahsin():
     best_valid_loss, best_valid_auc = train_val(-1, valid_loader, optimizer=optimizer, device=device, rate=1, train=False, mode='val')
     del tmp
     print('Model Loaded!')
-  
+
+  prev_epoch_num = 0
+  best_valid_loss = np.inf
+  best_valid_auc = 0.0  
   for epoch in range(prev_epoch_num, n_epochs):
     torch.cuda.empty_cache()
     print(gc.collect())
-    train_val(epoch, train_loader, optimizer=optimizer, device=device, choice_weights=choice_weights, rate=1.00, train=True, mode='train')
-    valid_loss, valid_auc = train_val(epoch, valid_loader, optimizer=optimizer, rate=1.00, train=False, mode='val')
+    model = train_val(epoch, train_loader, optimizer=optimizer, device=device, model=model, criterion=criterion, choice_weights=choice_weights, rate=1.00, train=True, mode='train')
+    valid_loss, valid_auc = train_val(epoch, valid_loader, optimizer=optimizer, device=device, model=model, criterion=criterion, rate=1.00, train=False, mode='val')
     print("#"*20)
     print(f"Epoch {epoch} Report:")
     print(f"Validation Loss: {valid_loss :.4f} \n Validation AUC: {valid_auc :.4f}")
@@ -123,7 +123,7 @@ def Engine_Tahsin():
     best_valid_loss, best_valid_auc = save_model(valid_loss, valid_auc, best_valid_loss, best_valid_auc, best_state, os.path.join(model_dir, model_name))
     print("#"*20)
 
-def train_val(epoch, dataloader, optimizer, device, choice_weights= [0.8, 0.1, 0.1], rate=1, train=True, mode='train'):
+def train_val(epoch, dataloader, optimizer, device, model, criterion, choice_weights= [0.8, 0.1, 0.1], rate=1, train=True, mode='train'):
   t1 = time.time()
   running_loss = 0
   epoch_samples = 0
@@ -135,8 +135,8 @@ def train_val(epoch, dataloader, optimizer, device, choice_weights= [0.8, 0.1, 0
   else:
     model.eval()
     print("Initiating val phase ...")
-  dataloader = pl.ParallelLoader(dataloader, [device])
-  tk0 = T(dataloader.per_device_loader(device), total=len(data_loader), disable=xm.get_ordinal()==0)
+  para_loader = pl.ParallelLoader(dataloader, [device])
+  tk0 = T(para_loader.per_device_loader(device), total=len(dataloader), disable=xm.get_ordinal()==0)
   for idx, (_, inputs,meta,labels) in enumerate(tk0):
     with torch.set_grad_enabled(train):
       inputs = inputs.to(device)
@@ -199,7 +199,8 @@ def train_val(epoch, dataloader, optimizer, device, choice_weights= [0.8, 0.1, 0
     history.loc[epoch, f'{mode}_auc'] = auc
     history.to_csv(f'history_{model_name}.csv', index=False)
     return running_loss/epoch_samples, auc
-   
+  else:
+    return model 
 def main(rank, flags):
     torch.set_default_tensor_type('torch.FloatTensor')
     a = Engine_Tahsin()
