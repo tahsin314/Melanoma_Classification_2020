@@ -72,7 +72,7 @@ class EffNet_ArcFace(nn.Module):
     def __init__(self, n_meta_features, pretrained_model='efficientnet-b4', use_meta=True):
         super(EffNet_ArcFace, self).__init__()
         # Load imagenet pre-trained model 
-        self.backbone = EfficientNet.from_pretrained(pretrained_model, in_channels=3).to('cuda:0')
+        self.backbone = EfficientNet.from_pretrained(pretrained_model, in_channels=3)
         in_features = self.backbone._fc.in_features
         self.backbone._fc = nn.Linear(in_features=in_features, out_features=500, bias=True)
         self.backbone._avg_pooling = GeM()

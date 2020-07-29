@@ -33,7 +33,7 @@ accum_step = 48 // batch_size
 opts = ['normal', 'mixup', 'cutmix']
 choice_weights = [1.0, 0.0, 0.0]
 device = 'cuda:0'
-mixed_precision = True
+mixed_precision = False
 pretrained_model = 'efficientnet-b5'
 model_name = '{}_trial_stage1_fold_{}'.format(pretrained_model, fold)
 model_dir = 'model_dir'
@@ -84,7 +84,7 @@ val_aug = Compose([Normalize(always_apply=True)])
 data_dir = 'data'
 image_path = f'{data_dir}/train_768'
 test_image_path = f'{data_dir}/test_768'
-pseduo_df = pd.read_csv('submissions/sub_958.csv')
+# pseduo_df = pd.read_csv('submissions/sub_958.csv')
 # df = pd.read_csv(f'{data_dir}/folds.csv')
 gen_challenge = {'lower extremity': 2, 'torso':3, 'head/neck':0, 'oral/genital':5, 'palms/soles':4, 'upper extremity':1}
 # meta_features = ['sex', 'age_approx', 'site_head/neck', 'site_lower extremity', 'site_oral/genital', 'site_palms/soles', 'site_torso', 'site_upper extremity', 'site_nan']

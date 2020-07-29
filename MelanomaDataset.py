@@ -13,6 +13,9 @@ import torch
 import torch.nn as nn
 from torch.utils.data import Dataset,DataLoader
 from torchvision import transforms,models
+import torch_xla.core.xla_model as xm
+import torch_xla.distributed.parallel_loader as pl
+import torch_xla.distributed.xla_multiprocessing as xmp
 from tqdm import tqdm_notebook as tqdm
 from utils import *
 import warnings
@@ -60,3 +63,37 @@ class MelanomaDataset(Dataset):
 
     def get_labels(self):
         return list(self.labels)
+
+class MelanomaDataLoader:
+    def __init__(self, image_ids, meta_features=None, labels=None, dim=512, transforms=None):
+        self.image_ids = image_ids
+        self.meta_features = meta_features
+        self.labels = labels
+        self.dim = dim
+        self.transforms = transforms
+        self.dataset = MelanomaDataset(
+            image_ids=self.image_ids,
+            meta_features=self.meta_features,
+            labels = self.labels,
+            dim = self.dim,
+            transforms=self.transforms
+        )
+    
+    def fetch(self, batch_size, num_workers, drop_last=False, shuffle=True, tpu=False):
+        sampler = None
+        if tpu == True:
+            sampler = torch.utils.data.distributed.DistributedSampler(
+                self.dataset,
+                num_replicas=xm.xrt_world_size(),
+                rank=xm.get_ordinal(),
+                shuffle=shuffle
+            )
+
+        data_loader = torch.utils.data.DataLoader(
+            self.dataset,
+            batch_size=batch_size,
+            sampler=sampler,
+            drop_last=drop_last,
+            num_workers=num_workers
+        )
+        return data_loader

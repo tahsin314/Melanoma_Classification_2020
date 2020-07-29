@@ -12,6 +12,9 @@ from albumentations.augmentations import functional as F_alb
 
 gen_challenge = {'lower extremity': 2, 'torso':3, 'head/neck':0, 'oral/genital':5, 'palms/soles':4, 'nan':-1, 'upper extremity':1}
 
+def reduce_fn(vals):
+    return sum(vals) / len(vals)
+
 def pseudo_label_df(df, lo_th=0.1, up_th=0.8):
     pred = df['prediction'].copy()
     pred[pred<lo_th] = 0
