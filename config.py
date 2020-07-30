@@ -25,17 +25,17 @@ from albumentations import (
 n_fold = 5
 fold = 0
 SEED = 24
-batch_size = 16
-sz = 512
-learning_rate = 1e-3
+batch_size = 8
+sz = 640
+learning_rate = 1e-4
 patience = 3
-accum_step = 48 // batch_size
+accum_step = 50 // batch_size
 opts = ['normal', 'mixup', 'cutmix']
 choice_weights = [1.0, 0.0, 0.0]
 device = 'cuda:0'
 mixed_precision = True
-pretrained_model = 'efficientnet-b5'
-model_name = '{}_trial_stage1_fold_{}'.format(pretrained_model, fold)
+pretrained_model = 'efficientnet-b6'
+model_name = '{}_fold_{}'.format(pretrained_model, fold)
 model_dir = 'model_dir'
 history_dir = 'history_dir'
 load_model = False
@@ -71,12 +71,12 @@ train_aug =Compose([
         # GaussNoise(var_limit=0.02),
         # Blur(),
         GaussianBlur(blur_limit=3),
-        RandomGamma(p=0.8),
-        ], p=0.5),
+        RandomGamma(p=0.7),
+        ], p=0.2),
     HueSaturationValue(p=0.4),
     HorizontalFlip(0.4),
     VerticalFlip(0.4),
-    ColorConstancy(p=0.5),
+    ColorConstancy(p=0.4),
     Normalize(always_apply=True)
     ]
       )
