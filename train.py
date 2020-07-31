@@ -63,7 +63,7 @@ train_meta = np.array(train_df[meta_features].values, dtype=np.float32)
 valid_meta = np.array(valid_df[meta_features].values, dtype=np.float32)
 test_meta = np.array(test_df[meta_features].values, dtype=np.float32)
 # model = seresnext(pretrained_model).to(device)
-model = EffNet_ArcFace(pretrained_model=pretrained_model, freeze_upto=freeze_upto).to(device)
+model = EffNet(pretrained_model=pretrained_model, freeze_upto=freeze_upto).to(device)
 train_ds = MelanomaDataset(train_df.image_name.values, train_meta, train_df.target.values, dim=sz, transforms=train_aug)
 if balanced_sampler:
   print('Using Balanced Sampler....')
@@ -153,7 +153,7 @@ def train_val(epoch, dataloader, optimizer, choice_weights= [0.8, 0.1, 0.1], rat
 plist = [ 
         {'params': model.backbone.parameters(),  'lr': learning_rate/100},
         {'params': model.meta_fc.parameters(),  'lr': learning_rate},
-        {'params': model.metric_classify.parameters(),  'lr': learning_rate},
+        {'params': model.output.parameters(),  'lr': learning_rate},
     ]
 
 optimizer = optim.Adam(plist, lr=learning_rate)
@@ -162,8 +162,8 @@ cyclic_scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=10*lear
 # cyclic_scheduler = torch.optim.lr_scheduler.CyclicLR(optimizer, base_lr=learning_rate/10, max_lr=learning_rate, step_size_up=2*len(train_loader), step_size_down=2*len(train_loader), mode='triangular', gamma=1.0, scale_fn=None, scale_mode='cycle', cycle_momentum=False, base_momentum=0.8, max_momentum=0.9, last_epoch=-1)
 
 # nn.BCEWithLogitsLoss(), ArcFaceLoss(), FocalLoss(logits=True).to(device), LabelSmoothing().to(device) 
-# criterion = criterion_margin_focal_binary_cross_entropy
-criterion = ArcFaceLoss().to(device)
+criterion = criterion_margin_focal_binary_cross_entropy
+# criterion = ArcFaceLoss().to(device)
 
 def main():
   prev_epoch_num = 0

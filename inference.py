@@ -15,7 +15,6 @@ import cv2
 from tqdm import tqdm as T
 from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import roc_auc_score
-from apex import amp
 import torch, torchvision
 from torchsummary import summary
 from torch.utils.tensorboard import SummaryWriter
@@ -77,14 +76,14 @@ test_df = pd.read_csv('test_768v2.csv')
 test_image_path = 'data/test_768'
 test_meta = np.array(test_df[meta_features].values, dtype=np.float32)
 
-model = EffNet(pretrained_model=pretrained_model).to(device)
+model = EffNet_ArcFace(pretrained_model=pretrained_model).to(device)
 pred_cols = ['image_name'].extend([f'TTA{i}' for i in range(TTA)])
 
 # augs = [test_aug, tta_aug1, tta_aug2, tta_aug3, tta_aug4, tta_aug5, tta_aug6, tta_aug7, tta_aug8, tta_aug9]
 augs = [test_aug, tta_aug1, tta_aug3, tta_aug6, tta_aug7, tta_aug8, tta_aug9]
 
-def rank_data(sub):
-    sub['target'] = sub['target'].rank() / sub['target'].rank().max()
+def rank_data(sub, t):
+    sub[f'target{t}'] = sub[f'target{t}'].rank() / sub[f'target{t}'].rank().max()
     return sub
 
 def evaluate():
@@ -105,7 +104,7 @@ def evaluate():
         img_ids.extend(img_id)        
         preds.extend(torch.softmax(outputs,1)[:,1].detach().cpu().numpy())
       zippedList =  list(zip(img_ids, preds))
-      temp_df = pd.DataFrame(zippedList, columns = ['image_name','target'])
+      temp_df = pd.DataFrame(zippedList, columns = ['image_name',f'target{t}'])
       temp_df.to_csv(f'submission_TTA{t}.csv', index=False)
       # PREDS += np.array(preds).reshape(len(test_loader.dataset), 1)
     #  PREDS /= TTA     
@@ -122,23 +121,52 @@ if load_model:
 # if apex:
 #     amp.initialize(model, opt_level='O1')
 
-evaluate()
+# evaluate()
 
-submission = pd.read_csv('submission_TTA0.csv')
-submission = rank_data(submission)
-submission.columns = ['image_name', 'target0']
+# submission = pd.read_csv('submission_TTA0.csv')
+# submission = rank_data(submission, 0)
+# submission.columns = ['image_name', 'target0']
 
-for i in range(1, TTA):
-  sub = pd.read_csv(f'submission_TTA{i}.csv')
-  sub = rank_data(sub)
-  sub.columns = ['image_name', f'target{i}']
-  submission.merge(sub, on = 'image_name')
+sub0 = pd.read_csv('submission_TTA0.csv')
+sub0 = rank_data(sub0, 0)
+sub1 = pd.read_csv('submission_TTA1.csv')
+sub1 = rank_data(sub1, 1)
+sub2 = pd.read_csv('submission_TTA2.csv')
+sub2 = rank_data(sub2, 2)
+sub3 = pd.read_csv('submission_TTA3.csv')
+sub3 = rank_data(sub3, 3)
+sub4 = pd.read_csv('submission_TTA4.csv')
+sub4 = rank_data(sub4, 4)
+sub5 = pd.read_csv('submission_TTA5.csv')
+sub5 = rank_data(sub5, 5)
+sub6 = pd.read_csv('submission_TTA6.csv')
+sub6 = rank_data(sub6, 6)
+sub0.columns = ['image_name', 'target0']
+sub1.columns = ['image_name', 'target1']
+sub2.columns = ['image_name', 'target2']
+sub3.columns = ['image_name', 'target3']
+sub4.columns = ['image_name', 'target4']
+sub5.columns = ['image_name', 'target5']
+sub6.columns = ['image_name', 'target6']
 
-for i in range(TTA):
-  submission['target'] = sum(submission[f'target{i}'] for i in TTA)/TTA
-  submission = submission[['image_name', 'target']]
+f_sub = sub0.merge(sub1, on = 'image_name').merge(sub2, on = 'image_name').merge(sub3, on = 'image_name').merge(sub4, on = 'image_name').merge(sub5, on = 'image_name').merge(sub6, on = 'image_name')
+f_sub['target'] = (f_sub['target0'] + f_sub['target1'] + f_sub['target2'] + f_sub['target3'] + f_sub['target4'] + f_sub['target5'] + f_sub['target6'])/TTA
+f_sub = f_sub[['image_name', 'target']]
+f_sub.to_csv('blend_sub.csv', index = False)
+# for i in range(1, TTA):
+#   sub = pd.read_csv(f'submission_TTA{i}.csv')
+#   sub = rank_data(sub, i)
+#   sub.columns = ['image_name', f'target{i}']
+#   submission.merge(sub, on = 'image_name')
+#   print(submission.keys())
 
-# zippedList =  list(zip(IMG_IDS, TARGET_PRED))
-# submission = pd.DataFrame(zippedList, columns = ['image_name','target'])
-submission['image_name'] = submission['image_name'].map(lambda x: x.replace(test_image_path, '').replace('.jpg', '').replace('/', ''))
-submission.to_csv('submission.csv', index=False)
+# submission['target'] = submission['target0']
+# for i in range(1, TTA):
+#   submission['target'] += submission[f'target{i}']
+# submission['target'] = submission['target']/TTA
+# submission = submission[['image_name', 'target']]
+
+# # zippedList =  list(zip(IMG_IDS, TARGET_PRED))
+# # submission = pd.DataFrame(zippedList, columns = ['image_name','target'])
+# submission['image_name'] = submission['image_name'].map(lambda x: x.replace(test_image_path, '').replace('.jpg', '').replace('/', ''))
+# submission.to_csv('submission.csv', index=False)
