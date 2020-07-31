@@ -34,6 +34,7 @@ My scripts for the [SIIM-ISIC Melanoma Classification challenge 2020](https://ww
 - [Ugly Duckling Concept](https://www.kaggle.com/c/siim-isic-melanoma-classification/discussion/155348)
 - [Public Leaderboard Probing](https://www.kaggle.com/c/siim-isic-melanoma-classification/discussion/154624)
 - [Specialized Rank Loss for Maximizing *ROC_AUC*](https://www.kaggle.com/c/siim-isic-melanoma-classification/discussion/155201#872557)
+- Humpback Whale Classification 1st place [solution](https://www.kaggle.com/c/humpback-whale-identification/discussion/82366)
 
 ## How to run
 - Run `git clone https://github.com/tahsin314/Melanoma_Classification_2020`

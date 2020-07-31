@@ -19,7 +19,7 @@ from losses.arcface import ArcMarginProduct
 from efficientnet_pytorch import EfficientNet
 
 class EffNet(nn.Module):
-    def __init__(self, n_meta_features=9, pretrained_model='efficientnet-b4', use_meta=True, freeze_upto=1):
+    def __init__(self, n_meta_features=9, pretrained_model='efficientnet-b4', use_meta=True, out_neurons=600, meta_neurons=150,freeze_upto=1):
         super(EffNet, self).__init__()
         # Load imagenet pre-trained model 
         self.backbone = EfficientNet.from_pretrained(pretrained_model, in_channels=3)
@@ -29,19 +29,21 @@ class EffNet(nn.Module):
             self.num_named_param = l
         self.freeze_upto_blocks(freeze_upto)
         in_features = self.backbone._fc.in_features
-        self.backbone._fc = nn.Linear(in_features=in_features, out_features=600, bias=True)
+        self.out_neurons = out_neurons
+        self.meta_neurons = meta_neurons
+        self.backbone._fc = nn.Linear(in_features=in_features, out_features=self.out_neurons, bias=True)
         self.backbone._avg_pooling = GeM()
         self.use_meta = use_meta
         if self.use_meta:
-            self.meta_fc = nn.Sequential(nn.Linear(n_meta_features, 600),
-                                  nn.BatchNorm1d(600),
+            self.meta_fc = nn.Sequential(nn.Linear(n_meta_features, self.out_neurons ),
+                                  nn.BatchNorm1d(self.out_neurons ),
                                   nn.ReLU(),
                                   nn.Dropout(p=0.3),
-                                  nn.Linear(600, 200),  # FC layer output will have 750 features
-                                  nn.BatchNorm1d(200),
+                                  nn.Linear(self.out_neurons , self.meta_neurons),  # FC layer output will have 750 features
+                                  nn.BatchNorm1d(self.meta_neurons),
                                   nn.ReLU(),
                                   nn.Dropout(p=0.4))
-            self.output = nn.Linear(600 + 200, 2)
+            self.output = nn.Linear(self.out_neurons  + self.meta_neurons, 2)
         else:
             self.backbone._fc = nn.Linear(in_features=in_features, out_features=2, bias=True)
         
@@ -69,7 +71,7 @@ class EffNet(nn.Module):
                 param.requires_grad = False
 
 class EffNet_ArcFace(nn.Module):
-    def __init__(self, n_meta_features=9, pretrained_model='efficientnet-b4', use_meta=True, freeze_upto=1):
+    def __init__(self, n_meta_features=9, pretrained_model='efficientnet-b4', use_meta=True, out_neurons=500, meta_neurons=250, freeze_upto=1):
         super(EffNet_ArcFace, self).__init__()
         # Load imagenet pre-trained model 
         self.backbone = EfficientNet.from_pretrained(pretrained_model, in_channels=3)
@@ -79,19 +81,21 @@ class EffNet_ArcFace(nn.Module):
             self.num_named_param = l
         self.freeze_upto_blocks(freeze_upto)
         in_features = self.backbone._fc.in_features
-        self.backbone._fc = nn.Linear(in_features=in_features, out_features=600, bias=True)
+        self.out_neurons = out_neurons
+        self.meta_neurons = meta_neurons
+        self.backbone._fc = nn.Linear(in_features=in_features, out_features=self.out_neurons, bias=True)
         self.backbone._avg_pooling = GeM()
         self.use_meta = use_meta
         if self.use_meta:
-            self.meta_fc = nn.Sequential(nn.Linear(n_meta_features, 600),
-                                  nn.BatchNorm1d(600),
+            self.meta_fc = nn.Sequential(nn.Linear(n_meta_features, self.out_neurons),
+                                  nn.BatchNorm1d(self.out_neurons),
                                   nn.ReLU(),
                                   nn.Dropout(p=0.3),
-                                  nn.Linear(600, 200),  # FC layer output will have 750 features
-                                  nn.BatchNorm1d(200),
+                                  nn.Linear(self.out_neurons, self.meta_neurons),  # FC layer output will have 750 features
+                                  nn.BatchNorm1d(self.meta_neurons),
                                   nn.ReLU(),
-                                  nn.Dropout(p=0.4))
-            self.metric_classify = ArcMarginProduct(600+200, 2)
+                                  nn.Dropout(p=0.3))
+            self.metric_classify = ArcMarginProduct(self.out_neurons+self.meta_neurons, 2)
         else:
             self.backbone._fc = nn.Linear(in_features=in_features, out_features=2, bias=True)
         

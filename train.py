@@ -30,7 +30,8 @@ from model.seresnext import seresnext
 from model.effnet import EffNet, EffNet_ArcFace
 from config import *
 
-scaler = torch.cuda.amp.GradScaler() 
+if mixed_precision:
+  scaler = torch.cuda.amp.GradScaler() 
 balanced_sampler = False
 np.random.seed(SEED)
 os.makedirs(model_dir, exist_ok=True)

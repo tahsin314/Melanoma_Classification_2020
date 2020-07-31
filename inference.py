@@ -28,6 +28,10 @@ from model.seresnext import seresnext
 from model.effnet import EffNet, EffNet_ArcFace
 # from model.densenet import *
 from config import *
+
+if mixed_precision:
+  scaler = torch.cuda.amp.GradScaler()
+
 history = pd.DataFrame()
 test_aug = Compose([Normalize()])
 tta_aug1 = Compose([
@@ -76,11 +80,11 @@ test_df = pd.read_csv('test_768v2.csv')
 test_image_path = 'data/test_768'
 test_meta = np.array(test_df[meta_features].values, dtype=np.float32)
 
-model = EffNet_ArcFace(pretrained_model=pretrained_model).to(device)
+model = EffNet(pretrained_model=pretrained_model).to(device)
 pred_cols = ['image_name'].extend([f'TTA{i}' for i in range(TTA)])
 
 # augs = [test_aug, tta_aug1, tta_aug2, tta_aug3, tta_aug4, tta_aug5, tta_aug6, tta_aug7, tta_aug8, tta_aug9]
-augs = [test_aug, tta_aug1, tta_aug3, tta_aug6, tta_aug7, tta_aug8, tta_aug9]
+augs = [test_aug, tta_aug1, tta_aug3, tta_aug6, tta_aug7, tta_aug8]
 
 def rank_data(sub, t):
     sub[f'target{t}'] = sub[f'target{t}'].rank() / sub[f'target{t}'].rank().max()
@@ -114,14 +118,13 @@ def evaluate():
 if load_model:
   tmp = torch.load(os.path.join(model_dir, model_name+'_loss.pth'))
   model.load_state_dict(tmp['model'])
-  print("Best Loss: {:4f}".format(tmp['best_auc']))
+  if mixed_precision:
+    scaler.load_state_dict(tmp['scaler'])
+  print("Best AUC: {:4f}".format(tmp['best_auc']))
   del tmp
   print('Model Loaded!')
 
-# if apex:
-#     amp.initialize(model, opt_level='O1')
-
-# evaluate()
+evaluate()
 
 # submission = pd.read_csv('submission_TTA0.csv')
 # submission = rank_data(submission, 0)
@@ -139,18 +142,18 @@ sub4 = pd.read_csv('submission_TTA4.csv')
 sub4 = rank_data(sub4, 4)
 sub5 = pd.read_csv('submission_TTA5.csv')
 sub5 = rank_data(sub5, 5)
-sub6 = pd.read_csv('submission_TTA6.csv')
-sub6 = rank_data(sub6, 6)
+# sub6 = pd.read_csv('submission_TTA6.csv')
+# sub6 = rank_data(sub6, 6)
 sub0.columns = ['image_name', 'target0']
 sub1.columns = ['image_name', 'target1']
 sub2.columns = ['image_name', 'target2']
 sub3.columns = ['image_name', 'target3']
 sub4.columns = ['image_name', 'target4']
 sub5.columns = ['image_name', 'target5']
-sub6.columns = ['image_name', 'target6']
+# sub6.columns = ['image_name', 'target6']
 
-f_sub = sub0.merge(sub1, on = 'image_name').merge(sub2, on = 'image_name').merge(sub3, on = 'image_name').merge(sub4, on = 'image_name').merge(sub5, on = 'image_name').merge(sub6, on = 'image_name')
-f_sub['target'] = (f_sub['target0'] + f_sub['target1'] + f_sub['target2'] + f_sub['target3'] + f_sub['target4'] + f_sub['target5'] + f_sub['target6'])/TTA
+f_sub = sub0.merge(sub1, on = 'image_name').merge(sub2, on = 'image_name').merge(sub3, on = 'image_name').merge(sub4, on = 'image_name').merge(sub5, on = 'image_name')
+f_sub['target'] = (f_sub['target0'] + f_sub['target1'] + f_sub['target2'] + f_sub['target3'] + f_sub['target4'] + f_sub['target5'])/TTA
 f_sub = f_sub[['image_name', 'target']]
 f_sub.to_csv('blend_sub.csv', index = False)
 # for i in range(1, TTA):
