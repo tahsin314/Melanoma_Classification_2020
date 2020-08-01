@@ -23,8 +23,8 @@ def pseudo_label_df(df, lo_th=0.1, up_th=0.8):
 
 def rank_based_pseudo_label_df(df, lo_th=0.1, up_th=0.8):
     df['prediction'] = df['prediction'].astype('float')
-    df['prediction'] = df['prediction'].rank()/df['prediction'].rank().max()
-    pred = df['prediction'].copy()
+    # df['prediction'] = df['prediction'].rank()/df['prediction'].rank().max()
+    pred = df['prediction'].astype('float').copy()
     pred[pred<lo_th] = 0
     pred[pred>up_th] = 1
     df['prediction'] = pred

@@ -25,21 +25,21 @@ from albumentations import (
 n_fold = 5
 fold = 0
 SEED = 24
-batch_size = 4
-sz = 640
+batch_size = 12
+sz = 512
 learning_rate = 3e-4
 patience = 3
 accum_step = 50 // batch_size
 opts = ['normal', 'mixup', 'cutmix']
 choice_weights = [1.0, 0.0, 0.0]
 device = 'cuda:0'
-mixed_precision = False
-pretrained_model = 'efficientnet-b6'
+mixed_precision = True
+pretrained_model = 'efficientnet-b5'
 model_name = f'{pretrained_model}_dim_{sz}'
-model_name = 'efficientnet-b6_trial_stage1_fold_0'
+# model_name = 'efficientnet-b6_trial_stage1_fold_0'
 model_dir = 'model_dir'
 history_dir = 'history_dir'
-load_model = True
+load_model = False
 freeze_upto = -1 # Freezes upto bottom n_blocks
 if load_model and os.path.exists(os.path.join(history_dir, f'history_{model_name}.csv')):
     history = pd.read_csv(os.path.join(history_dir, f'history_{model_name}.csv'))
@@ -69,9 +69,9 @@ train_aug =Compose([
     #     OpticalDistortion(p=0.1, distort_limit= 0.05, shift_limit=0.2,border_mode=cv2.BORDER_CONSTANT,value =0)                  
     #     ], p=0.3),
     OneOf([
-        # GaussNoise(var_limit=0.02),
+        GaussNoise(var_limit=0.02),
         # Blur(),
-        GaussianBlur(blur_limit=3),
+        # GaussianBlur(blur_limit=3),
         RandomGamma(p=0.7),
         ], p=0.2),
     HueSaturationValue(p=0.4),
@@ -85,7 +85,7 @@ val_aug = Compose([Normalize(always_apply=True)])
 data_dir = 'data'
 image_path = f'{data_dir}/train_768'
 test_image_path = f'{data_dir}/test_768'
-pseduo_df = pd.read_csv('submissions/sub_958.csv')
+pseduo_df = pd.read_csv('submissions/sub_946.csv')
 # df = pd.read_csv(f'{data_dir}/folds.csv')
 gen_challenge = {'lower extremity': 2, 'torso':3, 'head/neck':0, 'oral/genital':5, 'palms/soles':4, 'upper extremity':1}
 # meta_features = ['sex', 'age_approx', 'site_head/neck', 'site_lower extremity', 'site_oral/genital', 'site_palms/soles', 'site_torso', 'site_upper extremity', 'site_nan']

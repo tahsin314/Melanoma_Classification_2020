@@ -16,6 +16,7 @@ from torch.nn import functional as F
 from torch.utils import model_zoo
 from .utils import *
 from losses.arcface import ArcMarginProduct
+from losses.triplet_loss import *
 from efficientnet_pytorch import EfficientNet
 
 class EffNet(nn.Module):

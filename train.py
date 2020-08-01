@@ -36,21 +36,18 @@ balanced_sampler = False
 np.random.seed(SEED)
 os.makedirs(model_dir, exist_ok=True)
 os.makedirs(history_dir, exist_ok=True)
-pseduo_df = rank_based_pseudo_label_df(pseduo_df, 0.2, 0.99)
+pseduo_df = rank_based_pseudo_label_df(pseduo_df, 0.05, 0.80)
 pseudo_labels = list(pseduo_df['target'])
 print("Pseudo data length: {}".format(len(pseduo_df)))
 print("Negative label: {}, Positive label: {}".format(pseudo_labels.count(0), pseudo_labels.count(1))) 
 df = pd.read_csv('data/train_768.csv')
 pseduo_df['fold'] = np.nan
 pseduo_df['fold'] = pseduo_df['fold'].map(lambda x: 16)
-# pseduo_df = meta_df(pseduo_df, test_image_path)
+df = pd.concat([df, pseduo_df], ignore_index=True)
+# pseduo_df = rank_based_pseudo_label_df(pseduo_df, test_image_path)
     
-df['fold'] = df['fold'].astype('int')
-idxs = [i for i in range(len(df))]
-train_idx = []
-val_idx = []
-train_folds = [0, 1, 2, 3, 5, 6, 7, 8, 10, 11, 12, 13, 15]
-valid_folds = [4, 9, 14]
+train_folds = [0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 15, 16]
+valid_folds = [9, 14]
 train_df = df[df['fold'] == train_folds[0]]
 valid_df = df[df['fold'] == valid_folds[0]]
 
@@ -64,7 +61,7 @@ train_meta = np.array(train_df[meta_features].values, dtype=np.float32)
 valid_meta = np.array(valid_df[meta_features].values, dtype=np.float32)
 test_meta = np.array(test_df[meta_features].values, dtype=np.float32)
 # model = seresnext(pretrained_model).to(device)
-model = EffNet(pretrained_model=pretrained_model, freeze_upto=freeze_upto).to(device)
+model = EffNet_ArcFace(pretrained_model=pretrained_model, freeze_upto=freeze_upto, out_neurons=600, meta_neurons=200).to(device)
 train_ds = MelanomaDataset(train_df.image_name.values, train_meta, train_df.target.values, dim=sz, transforms=train_aug)
 if balanced_sampler:
   print('Using Balanced Sampler....')
@@ -154,7 +151,7 @@ def train_val(epoch, dataloader, optimizer, choice_weights= [0.8, 0.1, 0.1], rat
 plist = [ 
         {'params': model.backbone.parameters(),  'lr': learning_rate/100},
         {'params': model.meta_fc.parameters(),  'lr': learning_rate},
-        {'params': model.output.parameters(),  'lr': learning_rate},
+        {'params': model.metric_classify.parameters(),  'lr': learning_rate},
     ]
 
 optimizer = optim.Adam(plist, lr=learning_rate)
@@ -163,8 +160,8 @@ cyclic_scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=10*lear
 # cyclic_scheduler = torch.optim.lr_scheduler.CyclicLR(optimizer, base_lr=learning_rate/10, max_lr=learning_rate, step_size_up=2*len(train_loader), step_size_down=2*len(train_loader), mode='triangular', gamma=1.0, scale_fn=None, scale_mode='cycle', cycle_momentum=False, base_momentum=0.8, max_momentum=0.9, last_epoch=-1)
 
 # nn.BCEWithLogitsLoss(), ArcFaceLoss(), FocalLoss(logits=True).to(device), LabelSmoothing().to(device) 
-criterion = criterion_margin_focal_binary_cross_entropy
-# criterion = ArcFaceLoss().to(device)
+# criterion = criterion_margin_focal_binary_cross_entropy
+criterion = ArcFaceLoss().to(device)
 
 def main():
   prev_epoch_num = 0
