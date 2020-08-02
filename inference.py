@@ -116,7 +116,7 @@ def evaluate():
   #  return img_ids, temp_df
 
 if load_model:
-  tmp = torch.load(os.path.join(model_dir, model_name+'_loss.pth'))
+  tmp = torch.load(os.path.join(model_dir, model_name+'_auc.pth'))
   model.load_state_dict(tmp['model'])
   if mixed_precision:
     scaler.load_state_dict(tmp['scaler'])
@@ -155,6 +155,7 @@ sub5.columns = ['image_name', 'target5']
 f_sub = sub0.merge(sub1, on = 'image_name').merge(sub2, on = 'image_name').merge(sub3, on = 'image_name').merge(sub4, on = 'image_name').merge(sub5, on = 'image_name')
 f_sub['target'] = (f_sub['target0'] + f_sub['target1'] + f_sub['target2'] + f_sub['target3'] + f_sub['target4'] + f_sub['target5'])/TTA
 f_sub = f_sub[['image_name', 'target']]
+f_sub['image_name'] = f_sub['image_name'].map(lambda x: x.replace(test_image_path, '').replace('.jpg', '').replace('/', ''))
 f_sub.to_csv('blend_sub.csv', index = False)
 # for i in range(1, TTA):
 #   sub = pd.read_csv(f'submission_TTA{i}.csv')
