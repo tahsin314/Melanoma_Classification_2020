@@ -80,7 +80,7 @@ test_df = pd.read_csv('test_768v2.csv')
 test_image_path = 'data/test_768'
 test_meta = np.array(test_df[meta_features].values, dtype=np.float32)
 
-model = EffNet(pretrained_model=pretrained_model).to(device)
+model = EffNet_ArcFace(pretrained_model=pretrained_model, out_neurons=600, meta_neurons=200).to(device)
 pred_cols = ['image_name'].extend([f'TTA{i}' for i in range(TTA)])
 
 # augs = [test_aug, tta_aug1, tta_aug2, tta_aug3, tta_aug4, tta_aug5, tta_aug6, tta_aug7, tta_aug8, tta_aug9]

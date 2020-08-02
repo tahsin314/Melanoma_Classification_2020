@@ -154,7 +154,7 @@ plist = [
         {'params': model.metric_classify.parameters(),  'lr': learning_rate},
     ]
 
-optimizer = optim.Adam(plist, lr=learning_rate)
+optimizer = optim.AdamW(plist, lr=learning_rate)
 lr_reduce_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=patience, verbose=True, threshold=1e-4, threshold_mode='rel', cooldown=0, min_lr=1e-7, eps=1e-08)
 cyclic_scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=10*learning_rate, epochs=n_epochs, steps_per_epoch=len(train_loader), pct_start=0.3, anneal_strategy='cos', cycle_momentum=True, base_momentum=0.85, max_momentum=0.95, div_factor=20.0, final_div_factor=100.0, last_epoch=-1)
 # cyclic_scheduler = torch.optim.lr_scheduler.CyclicLR(optimizer, base_lr=learning_rate/10, max_lr=learning_rate, step_size_up=2*len(train_loader), step_size_down=2*len(train_loader), mode='triangular', gamma=1.0, scale_fn=None, scale_mode='cycle', cycle_momentum=False, base_momentum=0.8, max_momentum=0.9, last_epoch=-1)
@@ -173,8 +173,8 @@ def main():
     model.load_state_dict(tmp['model'])
     optimizer.load_state_dict(tmp['optim'])
     lr_reduce_scheduler.load_state_dict(tmp['scheduler'])
-    # cyclic_scheduler.load_state_dict(tmp['cyclic_scheduler'])
-    # amp.load_state_dict(tmp['amp'])
+    cyclic_scheduler.load_state_dict(tmp['cyclic_scheduler'])
+    scaler.load_state_dict(tmp['scaler'])
     prev_epoch_num = tmp['epoch']
     best_valid_loss = tmp['best_loss']
     best_valid_loss, best_valid_auc = train_val(-1, valid_loader, optimizer=optimizer, rate=1, train=False, mode='val')

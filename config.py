@@ -13,6 +13,7 @@ from losses.focal import criterion_margin_focal_binary_cross_entropy
 from model.seresnext import seresnext
 from model.effnet import EffNet, EffNet_ArcFace
 from utils import *
+from albumentations.augmentations.transforms import Equalize, Posterize, Downscale
 from albumentations import (
     PadIfNeeded, HorizontalFlip, VerticalFlip, CenterCrop,    
     RandomCrop, Resize, Crop, Compose, HueSaturationValue,
@@ -62,18 +63,19 @@ train_aug =Compose([
     RandomSizedCrop(min_max_height=(int(sz*0.8), int(sz*0.8)), height=sz, width=sz, p=0.5),
     AdvancedHairAugmentationAlbumentations(p=0.3),
     MicroscopeAlbumentations(0.1),
-    # RandomAugMix(severity=1, width=1, alpha=1., p=0.3),
-    # OneOf([
-    #     ElasticTransform(p=0.1, alpha=1, sigma=50, alpha_affine=30,border_mode=cv2.BORDER_CONSTANT,value =0),
-    #     GridDistortion(distort_limit =0.05 ,border_mode=cv2.BORDER_CONSTANT,value =0, p=0.1),
-    #     OpticalDistortion(p=0.1, distort_limit= 0.05, shift_limit=0.2,border_mode=cv2.BORDER_CONSTANT,value =0)                  
-    #     ], p=0.3),
+    # RandomAugMix(severity=3, width=1, alpha=1., p=0.3),
     OneOf([
-        GaussNoise(var_limit=0.02),
+        # Equalize(p=0.1),
+        Posterize(num_bits
+        =4, p=0.4),
+        Downscale(0.40, 0.80, cv2.INTER_LINEAR, p=0.3)                  
+        ], p=0.25),
+    OneOf([
+        GaussNoise(var_limit=0.1),
         # Blur(),
-        # GaussianBlur(blur_limit=3),
+        GaussianBlur(blur_limit=3),
         RandomGamma(p=0.7),
-        ], p=0.2),
+        ], p=0.35),
     HueSaturationValue(p=0.4),
     HorizontalFlip(0.4),
     VerticalFlip(0.4),
