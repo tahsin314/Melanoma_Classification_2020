@@ -116,7 +116,7 @@ def evaluate():
   #  return img_ids, temp_df
 
 if load_model:
-  tmp = torch.load(os.path.join(model_dir, model_name+'_auc.pth'))
+  tmp = torch.load(os.path.join(model_dir, model_name+'_loss.pth'))
   model.load_state_dict(tmp['model'])
   if mixed_precision:
     scaler.load_state_dict(tmp['scaler'])

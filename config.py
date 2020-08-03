@@ -26,16 +26,16 @@ from albumentations import (
 n_fold = 5
 fold = 0
 SEED = 24
-batch_size = 36
-sz = 400
-learning_rate = 3e-4
+batch_size = 40
+sz = 384
+learning_rate = 1e-3
 patience = 3
 accum_step = 50 // batch_size
 opts = ['normal', 'mixup', 'cutmix']
 choice_weights = [1.0, 0.0, 0.0]
 device = 'cuda:0'
 mixed_precision = True
-pretrained_model = 'efficientnet-b4'
+pretrained_model = 'efficientnet-b3'
 model_name = f'{pretrained_model}_dim_{sz}'
 # model_name = 'efficientnet-b6_trial_stage1_fold_0'
 model_dir = 'model_dir'
@@ -65,17 +65,17 @@ train_aug =Compose([
     MicroscopeAlbumentations(0.1),
     # RandomAugMix(severity=3, width=1, alpha=1., p=0.3),
     OneOf([
-        # Equalize(p=0.1),
+        Equalize(p=0.2),
         Posterize(num_bits
         =4, p=0.4),
         Downscale(0.40, 0.80, cv2.INTER_LINEAR, p=0.3)                  
-        ], p=0.25),
+        ], p=0.2),
     OneOf([
         GaussNoise(var_limit=0.1),
         # Blur(),
         GaussianBlur(blur_limit=3),
         RandomGamma(p=0.7),
-        ], p=0.35),
+        ], p=0.3),
     HueSaturationValue(p=0.4),
     HorizontalFlip(0.4),
     VerticalFlip(0.4),

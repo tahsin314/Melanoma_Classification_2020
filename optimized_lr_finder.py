@@ -36,6 +36,10 @@ from model.seresnext import seresnext
 from model.effnet import EffNet, EffNet_ArcFace
 from config import *
 from lr_finder import LRFinder
+
+if mixed_precision:
+  scaler = torch.cuda.amp.GradScaler()
+  
 prev_epoch_num = 0
 best_valid_loss = np.inf
 best_valid_auc = 0.0
