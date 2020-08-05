@@ -123,7 +123,7 @@ def train_val(epoch, dataloader, optimizer, choice_weights= [0.8, 0.1, 0.1], rat
             scaler.step(optimizer) 
             scaler.update() 
             optimizer.zero_grad()
-            cyclic_scheduler.step()
+            # cyclic_scheduler.step()
         else:
           loss.backward()
           if (idx+1) % accum_step == 0:
@@ -140,7 +140,8 @@ def train_val(epoch, dataloader, optimizer, choice_weights= [0.8, 0.1, 0.1], rat
         msg = f'Epoch {epoch} Progress: [{idx}/{len(dataloader)}] loss: {(running_loss/epoch_samples):.4f} Time: {elapsed}s ETA: {eta} s'
       print(msg, end= '\r')
   history.loc[epoch, f'{mode}_loss'] = running_loss/epoch_samples
-  history.loc[epoch, f'{mode}_time'] = elapsed  
+  history.loc[epoch, f'{mode}_time'] = elapsed
+  history.loc[epoch, 'rate'] = rate  
   if mode=='val':
     lr_reduce_scheduler.step(running_loss)
     auc = roc_auc_score(lab, pred)
@@ -148,7 +149,7 @@ def train_val(epoch, dataloader, optimizer, choice_weights= [0.8, 0.1, 0.1], rat
     print(msg)
     history.loc[epoch, f'{mode}_loss'] = running_loss/epoch_samples
     history.loc[epoch, f'{mode}_auc'] = auc
-    history.to_csv(f'history_{model_name}.csv', index=False)
+    history.to_csv(f'{history_dir}/history_{model_name}_{sz}.csv', index=False)
     return running_loss/epoch_samples, auc
 
 # Effnet model
@@ -191,7 +192,14 @@ def main():
   for epoch in range(prev_epoch_num, n_epochs):
     torch.cuda.empty_cache()
     print(gc.collect())
-    train_val(epoch, train_loader, optimizer=optimizer, choice_weights=choice_weights, rate=1.00, train=True, mode='train')
+    if epoch < 20:
+      rate = 1
+    elif epoch>=20 and rate>0.65:
+      rate = np.exp(-(epoch-20)/40)
+    else:
+      rate = 0.65
+
+    train_val(epoch, train_loader, optimizer=optimizer, choice_weights=choice_weights, rate=rate, train=True, mode='train')
     valid_loss, valid_auc = train_val(epoch, valid_loader, optimizer=optimizer, rate=1.00, train=False, mode='val')
     print("#"*20)
     print(f"Epoch {epoch} Report:")
