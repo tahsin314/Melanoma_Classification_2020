@@ -46,7 +46,8 @@ class EffNet(nn.Module):
                                   nn.Dropout(p=0.4))
             self.output = nn.Linear(self.out_neurons  + self.meta_neurons, 2)
         else:
-            self.backbone._fc = nn.Linear(in_features=in_features, out_features=2, bias=True)
+            self.output = nn.Linear(self.out_neurons, 2)
+            # self.backbone._fc = nn.Linear(in_features=in_features, out_features=2, bias=True)
         
     def forward(self, x, meta_data=None):
         if self.use_meta:
@@ -57,7 +58,8 @@ class EffNet(nn.Module):
             return output
         else:
             x = self.backbone(x)
-            return x
+            output = self.output(x)
+            return output
 
     def freeze_upto_blocks(self, n_blocks):
         '''

@@ -39,7 +39,8 @@ class AdaptiveConcatPool2d(Module):
         self.ap = nn.AdaptiveAvgPool2d(self.output_size)
         self.mp = nn.AdaptiveMaxPool2d(self.output_size)
 
-    def forward(self, x): return torch.cat([self.mp(x), self.ap(x)], 1)
+    def forward(self, x):
+        return torch.cat([self.mp(x), self.ap(x)], 1)
 
 def bn_drop_lin(n_in:int, n_out:int, bn:bool=True, p:float=0., actn:Optional[nn.Module]=None):
     "Sequence of batchnorm (if `bn`), dropout (with `p`) and linear (`n_in`,`n_out`) layers followed by `actn`."
@@ -54,7 +55,8 @@ class Flatten(Module):
     def __init__(self, full:bool=False): 
         super(Flatten,self).__init__()
         self.full = full
-    def forward(self, x): return x.view(-1) if self.full else x.view(x.size(0), -1)
+    def forward(self, x):
+        return x.view(-1) if self.full else x.view(x.size(0), -1)
 
 def gem(x, p=3, eps=1e-6):
     return F.avg_pool2d(x.clamp(min=eps).pow(p), (x.size(-2), x.size(-1))).pow(1./p)
@@ -97,17 +99,36 @@ def to_Mish(model):
             to_Mish(child)
 
 class Head(nn.Module):
-    def __init__(self, nc, n, ps=0.5, activation='swish'):
+    def __init__(self, nc, n, ps=0.5, activation='swish', use_meta=False, n_meta_features=9, meta_neurons=200, out_neurons=600):
         super().__init__()
+        self.meta_neurons = meta_neurons
+        self.out_neurons = out_neurons
+        self.use_meta = use_meta
+        self.meta_fc = nn.Sequential(nn.Linear(n_meta_features, out_neurons),
+                                  nn.BatchNorm1d(self.out_neurons),
+                                  Mish(),
+                                  nn.Dropout(p=0.3),
+                                  nn.Linear(self.out_neurons , self.meta_neurons),  # FC layer output will have 750 features
+                                  nn.BatchNorm1d(self.meta_neurons),
+                                  Mish(),
+                                  nn.Dropout(p=0.4))
+        self.output = nn.Linear(self.out_neurons  + self.meta_neurons, 2)
         if activation=='mish':
-            layers = [AdaptiveConcatPool2d(), Mish(), Flatten()] + \
-            bn_drop_lin(nc*2, 512, True, ps, Mish()) + \
-            bn_drop_lin(512, n, True, ps)
+            layers = [AdaptiveConcatPool2d(), Mish(), Flatten()]
         else:
-            layers = [GeM(), Swish(), Flatten()] + \
+            layers = [GeM(), Swish(), Flatten()] 
+        if not self.use_meta:
+            layers += \
             bn_drop_lin(nc*2, 512, True, ps, Swish()) + \
             bn_drop_lin(512, n, True, ps)
+        else:
+            layers += \
+            bn_drop_lin(nc*2, 512, True, ps, Swish()) + \
+            bn_drop_lin(512, 256, True, ps)
+            layers += [nn.Linear(256, out_neurons)]
+
         self.fc = nn.Sequential(*layers)
+        
         # self._init_weight()
         
     # def _init_weight(self):
@@ -118,8 +139,15 @@ class Head(nn.Module):
     #             m.weight.data.fill_(1.0)
     #             m.bias.data.zero_()
         
-    def forward(self, x):
-        return self.fc(x)
+    def forward(self, x, meta_data=None):
+        if self.use_meta:
+            cnn_features = self.fc(x)
+            meta_features = self.meta_fc(meta_data)
+            features = torch.cat((cnn_features, meta_features), dim=1)
+            output = self.output(features)
+            return output 
+        else:
+            return self.fc(x)
 
 class Conv2dStaticSamePadding(nn.Conv2d):
     """ 2D Convolutions like TensorFlow, for a fixed image size"""
