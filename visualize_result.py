@@ -16,7 +16,6 @@ import cv2
 from tqdm import tqdm as T
 from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import roc_auc_score
-from apex import amp
 import torch, torchvision
 from torch import optim
 from torch.nn import functional as F
@@ -30,6 +29,10 @@ from optimizers import Over9000
 from model.seresnext import seresnext
 from model.effnet import EffNet, EffNet_ArcFace
 from config import *
+
+if mixed_precision:
+  scaler = torch.cuda.amp.GradScaler()
+
 prev_epoch_num = 0
 best_valid_loss = np.inf
 best_valid_auc = 0.0
@@ -58,16 +61,11 @@ valid_df = df[df['fold'] == valid_folds[0]]
 for i in valid_folds[1:]:
   valid_df = pd.concat([valid_df, df[df['fold'] == i]])
 valid_meta = np.array(valid_df[meta_features].values, dtype=np.float32)
-# model = seresnext(pretrained_model).to(device)
-model = EffNet(pretrained_model=pretrained_model, freeze_upto=freeze_upto).to(device)
+model = seresnext(pretrained_model, use_meta=True).to(device)
+# model = EffNet(pretrained_model=pretrained_model, freeze_upto=freeze_upto).to(device)
 
 valid_ds = MelanomaDataset(valid_df.image_name.values, valid_meta, valid_df.target.values, dim=sz, transforms=val_aug)
 valid_loader = DataLoader(valid_ds, batch_size=batch_size, shuffle=True, num_workers=4)
-
-def idx_to_class(idx):
-    cls_map = pd.read_csv('./data/class_map.csv')
-    cls_map = cls_map[:168]
-    return cls_map.iloc[idx]['component']
 
 def train_val(epoch, dataloader, optimizer, choice_weights= [0.8, 0.1, 0.1], rate=1):
   t1 = time.time()
@@ -112,8 +110,8 @@ def train_val(epoch, dataloader, optimizer, choice_weights= [0.8, 0.1, 0.1], rat
 # Effnet model
 plist = [ 
         {'params': model.backbone.parameters(),  'lr': learning_rate/50},
-        {'params': model.meta_fc.parameters(),  'lr': learning_rate},
-        {'params': model.output.parameters(),  'lr': learning_rate},
+        # {'params': model.meta_fc.parameters(),  'lr': learning_rate},
+        # {'params': model.output.parameters(),  'lr': learning_rate},
     ]
 
 optimizer = optim.Adam(plist, lr=learning_rate)
@@ -122,12 +120,11 @@ lr_reduce_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode
 # nn.BCEWithLogitsLoss(), ArcFaceLoss(), FocalLoss(logits=True).to(device), LabelSmoothing().to(device) 
 criterion = criterion_margin_focal_binary_cross_entropy
 
-if apex:
-    amp.initialize(model, optimizer, opt_level='O1')
-
 if load_model:
   tmp = torch.load(os.path.join(model_dir, model_name+'_loss.pth'))
   model.load_state_dict(tmp['model'])
+  if mixed_precision:
+    scaler.load_state_dict(tmp['scaler'])
   # amp.load_state_dict(tmp['amp'])
   prev_epoch_num = tmp['epoch']
   best_valid_loss = tmp['best_loss']

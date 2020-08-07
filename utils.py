@@ -152,7 +152,7 @@ def ohem_loss(rate, base_crit, cls_pred, cls_target):
         keep_idx_cuda = idx[:keep_num]
         ohem_cls_loss = ohem_cls_loss[keep_idx_cuda]
     cls_loss = ohem_cls_loss.sum() / keep_num
-    return cls_loss
+    return cls_loss * batch_size
 
 def save_model(valid_loss, valid_auc, best_valid_loss, best_valid_auc, best_state, savepath):
     if valid_loss<best_valid_loss:

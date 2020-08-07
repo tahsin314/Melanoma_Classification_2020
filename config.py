@@ -26,21 +26,21 @@ from albumentations import (
 n_fold = 5
 fold = 0
 SEED = 24
-batch_size = 24
+batch_size = 16
 sz = 512
-learning_rate = 1e-3
+learning_rate = 1.5e-3
 patience = 3
 accum_step = 50 // batch_size
 opts = ['normal', 'mixup', 'cutmix']
-choice_weights = [1.0, 0.0, 0.0]
+choice_weights = [0.8, 0.1, 0.1]
 device = 'cuda:0'
 mixed_precision = True
-pretrained_model = 'seresnext50_32x4d'
+pretrained_model = 'efficientnet-b5'
 model_name = f'{pretrained_model}_dim_{sz}'
 # model_name = 'efficientnet-b6_trial_stage1_fold_0'
 model_dir = 'model_dir'
 history_dir = 'history_dir'
-load_model = True
+load_model = False
 freeze_upto = -1 # Freezes upto bottom n_blocks
 if load_model and os.path.exists(os.path.join(history_dir, f'history_{model_name}.csv')):
     history = pd.read_csv(os.path.join(history_dir, f'history_{model_name}.csv'))

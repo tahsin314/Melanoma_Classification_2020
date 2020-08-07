@@ -37,7 +37,7 @@ balanced_sampler = False
 np.random.seed(SEED)
 os.makedirs(model_dir, exist_ok=True)
 os.makedirs(history_dir, exist_ok=True)
-pseduo_df = rank_based_pseudo_label_df(pseduo_df, 0.05, 0.75)
+pseduo_df = rank_based_pseudo_label_df(pseduo_df, 0.05, 0.65)
 pseudo_labels = list(pseduo_df['target'])
 print("Pseudo data length: {}".format(len(pseduo_df)))
 print("Negative label: {}, Positive label: {}".format(pseudo_labels.count(0), pseudo_labels.count(1))) 
@@ -61,8 +61,8 @@ test_df = pseduo_df
 train_meta = np.array(train_df[meta_features].values, dtype=np.float32)
 valid_meta = np.array(valid_df[meta_features].values, dtype=np.float32)
 test_meta = np.array(test_df[meta_features].values, dtype=np.float32)
-model = seresnext(pretrained_model, use_meta=True).to(device)
-# model = EffNet(pretrained_model=pretrained_model, use_meta=True, freeze_upto=freeze_upto, out_neurons=600, meta_neurons=200).to(device)
+# model = seresnext(pretrained_model, use_meta=True).to(device)
+model = EffNet(pretrained_model=pretrained_model, use_meta=True, freeze_upto=freeze_upto, out_neurons=500, meta_neurons=250).to(device)
 train_ds = MelanomaDataset(train_df.image_name.values, train_meta, train_df.target.values, dim=sz, transforms=train_aug)
 if balanced_sampler:
   print('Using Balanced Sampler....')
@@ -129,7 +129,7 @@ def train_val(epoch, dataloader, optimizer, choice_weights= [0.8, 0.1, 0.1], rat
           if (idx+1) % accum_step == 0:
             optimizer.step()
             optimizer.zero_grad()
-            cyclic_scheduler.step()    
+            # cyclic_scheduler.step()    
       elapsed = int(time.time() - t1)
       eta = int(elapsed / (idx+1) * (len(dataloader)-(idx+1)))
       pred.extend(torch.softmax(outputs,1)[:,1].detach().cpu().numpy())
@@ -155,15 +155,15 @@ def train_val(epoch, dataloader, optimizer, choice_weights= [0.8, 0.1, 0.1], rat
 # Effnet model
 plist = [ 
         {'params': model.backbone.parameters(),  'lr': learning_rate/100},
-        {'params': model.head.parameters()},
-        # {'params': model.meta_fc.parameters()},
-        # {'params': model.output.parameters()},
+        # {'params': model.head.parameters()},
+        {'params': model.meta_fc.parameters()},
+        {'params': model.output.parameters()},
         # {'params': model.metric_classify.parameters()},
     ]
 
 optimizer = optim.AdamW(plist, lr=learning_rate)
 lr_reduce_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=patience, verbose=True, threshold=1e-4, threshold_mode='rel', cooldown=0, min_lr=1e-7, eps=1e-08)
-cyclic_scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=[learning_rate/10, 10*learning_rate], epochs=n_epochs, steps_per_epoch=len(train_loader), pct_start=0.3, anneal_strategy='cos', cycle_momentum=True, base_momentum=0.85, max_momentum=0.95, div_factor=20.0, final_div_factor=100.0, last_epoch=-1)
+cyclic_scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=[learning_rate/10, learning_rate/10, 10*learning_rate], epochs=n_epochs, steps_per_epoch=len(train_loader), pct_start=0.3, anneal_strategy='cos', cycle_momentum=True, base_momentum=0.85, max_momentum=0.95, div_factor=20.0, final_div_factor=100.0, last_epoch=-1)
 # cyclic_scheduler = torch.optim.lr_scheduler.CyclicLR(optimizer, base_lr=learning_rate/10, max_lr=learning_rate, step_size_up=2*len(train_loader), step_size_down=2*len(train_loader), mode='triangular', gamma=1.0, scale_fn=None, scale_mode='cycle', cycle_momentum=False, base_momentum=0.8, max_momentum=0.9, last_epoch=-1)
 
 # nn.BCEWithLogitsLoss(), ArcFaceLoss(), FocalLoss(logits=True).to(device), LabelSmoothing().to(device) 
