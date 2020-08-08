@@ -174,6 +174,36 @@ class Conv2dStaticSamePadding(nn.Conv2d):
         x = F.conv2d(x, self.weight, self.bias, self.stride, self.padding, self.dilation, self.groups)
         return x
 
+class AttentionBlock(nn.Module):
+    def __init__(self, in_features_l, in_features_g, attn_features, up_factor, normalize_attn=True):
+        super(AttentionBlock, self).__init__()
+        self.up_factor = up_factor
+        self.normalize_attn = normalize_attn
+        self.W_l = nn.Conv2d(in_channels=in_features_l, out_channels=attn_features, kernel_size=1, padding=0, bias=False)
+        self.W_g = nn.Conv2d(in_channels=in_features_g, out_channels=attn_features, kernel_size=1, padding=0, bias=False)
+        self.phi = nn.Conv2d(in_channels=attn_features, out_channels=1, kernel_size=1, padding=0, bias=True)
+    def forward(self, l, g):
+        N, C, W, H = l.size()
+        l_ = self.W_l(l)
+        g_ = self.W_g(g)
+        if self.up_factor > 1:
+            g_ = F.interpolate(g_, scale_factor=self.up_factor, mode='bilinear', align_corners=False)
+        c = self.phi(F.relu(l_ + g_)) # batch_sizex1xWxH
+        
+        # compute attn map
+        if self.normalize_attn:
+            a = F.softmax(c.view(N,1,-1), dim=2).view(N,1,W,H)
+        else:
+            a = torch.sigmoid(c)
+        # re-weight the local feature
+        f = torch.mul(a.expand_as(l), l) # batch_sizexCxWxH
+        if self.normalize_attn:
+            output = f.view(N,C,-1).sum(dim=2) # weighted sum
+        else:
+            output = F.adaptive_avg_pool2d(f, (1,1)).view(N,C) # global average pooling
+        return a, output
+
+
 def get_cadene_model(model_name='se_resnext101_32x4d', pretrained=True):
     if pretrained:
         arch = pretrainedmodels.__dict__[model_name](num_classes=1000, pretrained='imagenet')

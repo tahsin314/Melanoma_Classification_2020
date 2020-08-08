@@ -164,3 +164,14 @@ def save_model(valid_loss, valid_auc, best_valid_loss, best_valid_auc, best_stat
         torch.save(best_state, savepath + '_auc.pth')
         best_valid_auc = valid_auc
     return best_valid_loss, best_valid_auc 
+
+def auc_hack(preds, EXP=-1.2):
+    p = np.argmax(preds,axis=1)
+    s = pd.Series(p)
+    vc = s.value_counts().sort_index()
+    df = pd.DataFrame({'a':np.arange(2),'b':np.ones(2)})
+    df.b = df.a.map(vc)
+    df.fillna(df.b.min(),inplace=True)
+    mat1 = np.diag(df.b.astype('float32')**EXP)
+    p= preds.dot(mat1)
+    return p[:, 1]

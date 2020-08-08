@@ -54,15 +54,15 @@ idxs = [i for i in range(len(df))]
 train_idx = []
 val_idx = []
 train_folds = [0, 1, 2, 3, 5, 6, 7, 8, 10, 11, 12, 13, 15, 16]
-valid_folds = [4, 9, 14]
+valid_folds = [4, 14]
 train_df = df[df['fold'] == train_folds[0]]
 valid_df = df[df['fold'] == valid_folds[0]]
 
 for i in valid_folds[1:]:
   valid_df = pd.concat([valid_df, df[df['fold'] == i]])
 valid_meta = np.array(valid_df[meta_features].values, dtype=np.float32)
-model = seresnext(pretrained_model, use_meta=True).to(device)
-# model = EffNet(pretrained_model=pretrained_model, freeze_upto=freeze_upto).to(device)
+# model = seresnext(pretrained_model, use_meta=True).to(device)
+model = EffNet(pretrained_model=pretrained_model, use_meta=True, freeze_upto=freeze_upto, out_neurons=500, meta_neurons=250).to(device)
 
 valid_ds = MelanomaDataset(valid_df.image_name.values, valid_meta, valid_df.target.values, dim=sz, transforms=val_aug)
 valid_loader = DataLoader(valid_ds, batch_size=batch_size, shuffle=True, num_workers=4)
@@ -74,7 +74,7 @@ def train_val(epoch, dataloader, optimizer, choice_weights= [0.8, 0.1, 0.1], rat
   img_ids = []
   pred = []
   lab = []
-  
+  probs = []
   model.eval()
   print("Initiating val phase ...")
   for idx, (img_id, inputs,meta,labels) in enumerate(dataloader):
@@ -92,18 +92,21 @@ def train_val(epoch, dataloader, optimizer, choice_weights= [0.8, 0.1, 0.1], rat
         elapsed = int(time.time() - t1)
         eta = int(elapsed / (idx+1) * (len(dataloader)-(idx+1)))
         img_ids.extend(img_id)
+        probs.extend(torch.softmax(outputs,1).detach().cpu().numpy())
         pred.extend(torch.softmax(outputs,1)[:,1].detach().cpu().numpy())
         lab.extend(torch.argmax(labels, 1).cpu().numpy())
         msg = f'Epoch {epoch} Progress: [{idx}/{len(dataloader)}] loss: {(running_loss/epoch_samples):.4f} Time: {elapsed}s ETA: {eta} s'
         print(msg, end= '\r')
-  
+  # exps = np.linspace(-5, -2, 40)
+  # for ex in exps:
+    # pred = [((p+1e-8)**ex).astype('float64') for p in pred]
   score_diff = np.abs(np.array(pred)-np.array(lab))      
   auc = roc_auc_score(lab, pred)
   zippedList =  list(zip(img_ids, lab, pred, score_diff))
   submission = pd.DataFrame(zippedList, columns = ['image_name','label', 'target', 'difference'])
   submission = submission.sort_values(by=['difference'], ascending=False)
   submission.to_csv('val_report.csv', index=False)
-  msg = f'Validation Loss: {running_loss/epoch_samples:.4f} \n Validation Auc: {auc:.4f}'
+  msg = f'Validation Loss: {running_loss/epoch_samples:.4f} Validation Auc: {auc:.4f}'
   print(msg)
   return running_loss/epoch_samples, auc
 

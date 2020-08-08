@@ -80,8 +80,8 @@ test_df = pd.read_csv('test_768v2.csv')
 test_image_path = 'data/test_768'
 test_meta = np.array(test_df[meta_features].values, dtype=np.float32)
 
-# model = EffNet(pretrained_model=pretrained_model, use_meta=True, out_neurons=600, meta_neurons=200).to(device)
-model = seresnext(pretrained_model, use_meta=True).to(device)
+model = EffNet(pretrained_model=pretrained_model, use_meta=True, freeze_upto=freeze_upto, out_neurons=500, meta_neurons=250).to(device)
+# model = seresnext(pretrained_model, use_meta=True).to(device)
 pred_cols = ['image_name'].extend([f'TTA{i}' for i in range(TTA)])
 
 # augs = [test_aug, tta_aug1, tta_aug2, tta_aug3, tta_aug4, tta_aug5, tta_aug6, tta_aug7, tta_aug8, tta_aug9]
@@ -158,6 +158,7 @@ f_sub['target'] = (f_sub['target0'] + f_sub['target1'] + f_sub['target2'] + f_su
 f_sub = f_sub[['image_name', 'target']]
 f_sub['image_name'] = f_sub['image_name'].map(lambda x: x.replace(test_image_path, '').replace('.jpg', '').replace('/', ''))
 f_sub.to_csv('blend_sub.csv', index = False)
+
 # for i in range(1, TTA):
 #   sub = pd.read_csv(f'submission_TTA{i}.csv')
 #   sub = rank_data(sub, i)
