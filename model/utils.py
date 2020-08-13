@@ -98,6 +98,11 @@ def to_Mish(model):
         else:
             to_Mish(child)
 
+def to_GeM(model):
+    for child_name, child in model.named_children():
+        if isinstance(child, nn.ReLU):
+            setattr(model, child_name, GeM())
+
 class Head(nn.Module):
     def __init__(self, nc, n, ps=0.5, activation='swish', use_meta=False, n_meta_features=9, meta_neurons=200, out_neurons=600):
         super().__init__()

@@ -17,7 +17,7 @@ def decode_image(features):
 
 data_dir = 'data'
 tfrec_dir = f'{data_dir}/tfrecords'
-train_dir = f"{data_dir}/train_768"
+train_dir = f"{data_dir}/malignant"
 test_dir = f"{data_dir}/test_768"
 filelist = os.listdir(tfrec_dir)
 filelist = [f for f in filelist if '.tfrec' in f]
@@ -77,6 +77,7 @@ def tfrec_extract(filename):
 for f in T(filelist):
     tfrec_extract(f)
 
-train.to_csv(f"{data_dir}/train_768.csv", index=False)
-test.to_csv(f"{data_dir}/test_768.csv", index=False)
-print(f"total {train_row} train images and {test_row} test images")
+train.to_csv(f"{data_dir}/malignant.csv", index=False)
+print(f"total {train_row} train images")
+# test.to_csv(f"{data_dir}/test_768.csv", index=False)
+# print(f"total {train_row} train images and {test_row} test images")

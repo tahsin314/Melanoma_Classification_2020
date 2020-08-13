@@ -26,21 +26,22 @@ from albumentations import (
 n_fold = 5
 fold = 0
 SEED = 24
-batch_size = 40
+batch_size = 24
 sz = 512
-learning_rate = 1.5e-3
+learning_rate = 3e-3
 patience = 3
 accum_step = 50 // batch_size
 opts = ['normal', 'mixup', 'cutmix']
-choice_weights = [0.9, 0.05, 0.05]
+choice_weights = [0.80, 0.10, 0.10]
 device = 'cuda:0'
 mixed_precision = True
-pretrained_model = 'resnest50d_1s4x24d'
+use_meta = False
+pretrained_model = 'mixnet_xl'
 model_name = f'{pretrained_model}_dim_{sz}'
 # model_name = 'efficientnet-b6_trial_stage1_fold_0'
 model_dir = 'model_dir'
 history_dir = 'history_dir'
-load_model = False
+load_model = True
 freeze_upto = -1 # Freezes upto bottom n_blocks
 if load_model and os.path.exists(os.path.join(history_dir, f'history_{model_name}.csv')):
     history = pd.read_csv(os.path.join(history_dir, f'history_{model_name}.csv'))
@@ -50,7 +51,7 @@ else:
 imagenet_stats = ([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 n_epochs = 60
 TTA = 6
-balanced_sampler = False
+balanced_sampler = True
 pseudo_lo_thr = 0.10
 pseudo_up_thr = 0.70
 
@@ -72,7 +73,7 @@ train_aug =Compose([
         ], p=0.2),
     OneOf([
         GaussNoise(var_limit=0.1),
-        # Blur(),
+        Blur(),
         GaussianBlur(blur_limit=3),
         # RandomGamma(p=0.7),
         ], p=0.3),

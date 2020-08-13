@@ -26,6 +26,7 @@ from utils import *
 from optimizers import Over9000
 from model.seresnext import seresnext
 from model.effnet import EffNet, EffNet_ArcFace
+from model.resnest import Resnest
 # from model.densenet import *
 from config import *
 
@@ -80,12 +81,14 @@ test_df = pd.read_csv('test_768v2.csv')
 test_image_path = 'data/test_768'
 test_meta = np.array(test_df[meta_features].values, dtype=np.float32)
 
-model = EffNet(pretrained_model=pretrained_model, use_meta=True, freeze_upto=freeze_upto, out_neurons=500, meta_neurons=250).to(device)
+model = Resnest(pretrained_model, use_meta=use_meta, out_neurons=500, meta_neurons=250).to(device)
+# model = EffNet(pretrained_model=pretrained_model, use_meta=True, freeze_upto=freeze_upto, out_neurons=500, meta_neurons=250).to(device)
 # model = seresnext(pretrained_model, use_meta=True).to(device)
 pred_cols = ['image_name'].extend([f'TTA{i}' for i in range(TTA)])
 
 # augs = [test_aug, tta_aug1, tta_aug2, tta_aug3, tta_aug4, tta_aug5, tta_aug6, tta_aug7, tta_aug8, tta_aug9]
-augs = [test_aug, tta_aug1, tta_aug3, tta_aug6, tta_aug7, tta_aug8]
+# augs = [test_aug, tta_aug1, tta_aug3, tta_aug6, tta_aug7, tta_aug8]
+augs = [test_aug, tta_aug1, tta_aug1, tta_aug1, tta_aug3, tta_aug3, tta_aug3, tta_aug6, tta_aug6, tta_aug6, tta_aug7, tta_aug7, tta_aug7, tta_aug8, tta_aug8, tta_aug8]
 
 def rank_data(sub, t):
     sub[f'target{t}'] = sub[f'target{t}'].rank() / sub[f'target{t}'].rank().max()
@@ -95,7 +98,7 @@ def evaluate():
    model.eval()
    PREDS = np.zeros((len(test_df), 1))
    with torch.no_grad():
-     for t in range(TTA):
+     for t in range(len(augs)):
       print('TTA {}'.format(t+1))
       test_ds = MelanomaDataset(image_ids=test_df.image_name.values, meta_features=test_meta, dim=sz, transforms=augs[t])
       test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False, num_workers=4)
@@ -117,7 +120,7 @@ def evaluate():
   #  return img_ids, temp_df
 
 if load_model:
-  tmp = torch.load(os.path.join(model_dir, model_name+'_loss.pth'))
+  tmp = torch.load(os.path.join(model_dir, model_name+'_auc.pth'))
   model.load_state_dict(tmp['model'])
   if mixed_precision:
     scaler.load_state_dict(tmp['scaler'])

@@ -28,6 +28,7 @@ from utils import *
 from optimizers import Over9000
 from model.seresnext import seresnext
 from model.effnet import EffNet, EffNet_ArcFace
+from model.resnest import Resnest
 from config import *
 
 if mixed_precision:
@@ -53,19 +54,110 @@ df['fold'] = df['fold'].astype('int')
 idxs = [i for i in range(len(df))]
 train_idx = []
 val_idx = []
-train_folds = [0, 1, 2, 3, 5, 6, 7, 8, 10, 11, 12, 13, 15, 16]
-valid_folds = [4, 14]
+train_folds = [0, 1, 2, 5, 6, 8, 9, 10, 12, 13, 15, 16]
+valid_folds = [3,7,11,14]
 train_df = df[df['fold'] == train_folds[0]]
 valid_df = df[df['fold'] == valid_folds[0]]
 
 for i in valid_folds[1:]:
   valid_df = pd.concat([valid_df, df[df['fold'] == i]])
 valid_meta = np.array(valid_df[meta_features].values, dtype=np.float32)
+model = Resnest(pretrained_model, use_meta=use_meta, out_neurons=500, meta_neurons=250).to(device)
+
 # model = seresnext(pretrained_model, use_meta=True).to(device)
-model = EffNet(pretrained_model=pretrained_model, use_meta=True, freeze_upto=freeze_upto, out_neurons=500, meta_neurons=250).to(device)
+# model = EffNet(pretrained_model=pretrained_model, use_meta=True, freeze_upto=freeze_upto, out_neurons=500, meta_neurons=250).to(device)
 
 valid_ds = MelanomaDataset(valid_df.image_name.values, valid_meta, valid_df.target.values, dim=sz, transforms=val_aug)
 valid_loader = DataLoader(valid_ds, batch_size=batch_size, shuffle=True, num_workers=4)
+
+test_aug = Compose([Normalize()])
+tta_aug1 = Compose([
+  ShiftScaleRotate(p=1,rotate_limit=180, border_mode= cv2.BORDER_REFLECT, value=[0, 0, 0], scale_limit=0.25),
+    Normalize(always_apply=True)])
+tta_aug2 = Compose([
+  Cutout(p=1.0, max_h_size=sz//16, max_w_size=sz//16, num_holes=10, fill_value=0),
+    Normalize(always_apply=True)])
+tta_aug3 = Compose([
+  RandomSizedCrop(min_max_height=(int(sz*0.8), int(sz*0.8)), height=sz, width=sz, p=1.0),
+    Normalize(always_apply=True)])
+tta_aug4 = Compose([
+  AdvancedHairAugmentationAlbumentations(p=1.0),
+    Normalize(always_apply=True)])
+tta_aug5 = Compose([
+  GaussianBlur(blur_limit=3, p=1),
+    Normalize(always_apply=True)])
+tta_aug6 = Compose([
+  HueSaturationValue(p=1.0),
+    Normalize(always_apply=True)])
+tta_aug7 = Compose([
+  HorizontalFlip(1.0),
+    Normalize(always_apply=True)])
+
+tta_aug8 = Compose([
+  VerticalFlip(1.0),
+    Normalize(always_apply=True)])
+
+tta_aug9 = Compose([
+  ColorConstancy(p=1.0),
+    Normalize(always_apply=True)])
+
+tta_aug =Compose([
+  ShiftScaleRotate(p=0.9,rotate_limit=180, border_mode= cv2.BORDER_REFLECT, value=[0, 0, 0], scale_limit=0.25),
+    OneOf([
+    Cutout(p=0.3, max_h_size=sz//16, max_w_size=sz//16, num_holes=10, fill_value=0),
+    ], p=0.20),
+    RandomSizedCrop(min_max_height=(int(sz*0.8), int(sz*0.8)), height=sz, width=sz, p=0.5),
+    HueSaturationValue(p=0.4),
+    HorizontalFlip(0.4),
+    VerticalFlip(0.4),
+    Normalize(always_apply=True)
+    ]
+      )
+augs = [test_aug, tta_aug1, tta_aug1, tta_aug1, tta_aug3, tta_aug3, tta_aug3, tta_aug6, tta_aug6, tta_aug6, tta_aug7, tta_aug7, tta_aug7, tta_aug8, tta_aug8, tta_aug8]
+# augs = [test_aug, tta_aug1]
+
+def evaluate():
+   model.eval()
+   PREDS = np.zeros((len(valid_df), 1))
+   IMG_IDS = []
+   LAB = []
+   with torch.no_grad():
+    for t in range(len(augs)):
+      print('TTA {}'.format(t+1))
+      test_ds = MelanomaDataset(image_ids=valid_df.image_name.values, meta_features=valid_meta, dim=sz, transforms=augs[t])
+      test_loader = DataLoader(valid_ds, batch_size=batch_size, shuffle=False, num_workers=4)
+
+      img_ids = []
+      preds = []
+      lab = []
+      
+      for idx, (img_id, inputs, meta, labels) in T(enumerate(test_loader),total=len(test_loader)):
+        inputs = inputs.to(device)
+        meta = meta.to(device)
+        labels = labels.to(device)
+        outputs = model(inputs.float(), meta)
+        img_ids.extend(img_id)        
+        preds.extend(torch.softmax(outputs,1)[:,1].detach().cpu().numpy())
+        lab.extend(torch.argmax(labels, 1).cpu().numpy())
+      # zippedList =  list(zip(img_ids, preds))
+      print(np.array(preds).shape, np.array(lab).shape)
+      score_diff_tta = np.abs(np.array(preds)-np.array(lab)).reshape(len(valid_loader.dataset), 1)
+      # print(score_diff_tta.shape)
+    # print(np.array(PREDS).shape, np.array(LAB).shape)
+      zippedList_tta =  list(zip(img_ids, lab, np.squeeze(preds), np.squeeze(score_diff_tta)))
+      temp_df = pd.DataFrame(zippedList_tta, columns = ['image_name','label', 'predictions', 'difference'])
+      temp_df.to_csv(f'submission_TTA{t}.csv', index=False)
+      IMG_IDS = img_ids
+      LAB = lab
+      PREDS += np.array(preds).reshape(len(valid_loader.dataset), 1)
+    PREDS /= len(augs)
+    score_diff = np.abs(np.array(PREDS)-np.array(LAB).reshape(len(valid_loader.dataset), 1))
+    # print(np.array(PREDS).shape, np.array(LAB).shape)
+    zippedList =  list(zip(IMG_IDS, LAB, np.squeeze(PREDS), np.squeeze(score_diff)))
+    submission = pd.DataFrame(zippedList, columns = ['image_name','label', 'prediction', 'difference'])
+    submission = submission.sort_values(by=['difference'], ascending=False)
+    submission.to_csv('val_report.csv', index=False)      
+  
 
 def train_val(epoch, dataloader, optimizer, choice_weights= [0.8, 0.1, 0.1], rate=1):
   t1 = time.time()
@@ -99,7 +191,7 @@ def train_val(epoch, dataloader, optimizer, choice_weights= [0.8, 0.1, 0.1], rat
         print(msg, end= '\r')
   # exps = np.linspace(-5, -2, 40)
   # for ex in exps:
-    # pred = [((p+1e-8)**ex).astype('float64') for p in pred]
+  # pred = [((p+1e-8)**-1) for p in pred]
   score_diff = np.abs(np.array(pred)-np.array(lab))      
   auc = roc_auc_score(lab, pred)
   zippedList =  list(zip(img_ids, lab, pred, score_diff))
@@ -109,6 +201,27 @@ def train_val(epoch, dataloader, optimizer, choice_weights= [0.8, 0.1, 0.1], rat
   msg = f'Validation Loss: {running_loss/epoch_samples:.4f} Validation Auc: {auc:.4f}'
   print(msg)
   return running_loss/epoch_samples, auc
+
+def evaluatev2(test_df, test_meta):
+   model.eval()
+   PREDS = np.zeros((len(test_df), 1))
+   with torch.no_grad():
+     for t in range(len(augs)):
+      print('TTA {}'.format(t+1))
+      test_ds = MelanomaDataset(image_ids=test_df.image_name.values, meta_features=test_meta, dim=sz, transforms=augs[t])
+      test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False, num_workers=4)
+
+      img_ids = []
+      preds = []
+      for idx, (img_id, inputs, meta) in T(enumerate(test_loader),total=len(test_loader)):
+        inputs = inputs.to(device)
+        meta = meta.to(device)
+        outputs = model(inputs.float(), meta)
+        img_ids.extend(img_id)        
+        preds.extend(torch.softmax(outputs,1)[:,1].detach().cpu().numpy())
+      zippedList =  list(zip(img_ids, preds))
+      temp_df = pd.DataFrame(zippedList, columns = ['image_name',f'target{t}'])
+      temp_df.to_csv(f'submission_TTA{t}.csv', index=False)
 
 # Effnet model
 plist = [ 
@@ -124,7 +237,7 @@ lr_reduce_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode
 criterion = criterion_margin_focal_binary_cross_entropy
 
 if load_model:
-  tmp = torch.load(os.path.join(model_dir, model_name+'_loss.pth'))
+  tmp = torch.load(os.path.join(model_dir, model_name+'_auc.pth'))
   model.load_state_dict(tmp['model'])
   if mixed_precision:
     scaler.load_state_dict(tmp['scaler'])
@@ -133,4 +246,6 @@ if load_model:
   best_valid_loss = tmp['best_loss']
   print('Model Loaded!')
 
-valid_loss, valid_auc = train_val(-1, valid_loader, optimizer=optimizer, rate=1.00)
+# valid_loss, valid_auc = train_val(-1, valid_loader, optimizer=optimizer, rate=1.00)
+# evaluate()
+evaluatev2(valid_df, valid_meta)
