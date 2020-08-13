@@ -28,7 +28,7 @@ from utils import *
 from optimizers import Over9000
 from model.seresnext import seresnext
 from model.effnet import EffNet, EffNet_ArcFace
-from model.resnest import Resnest
+from model.resnest import Resnest, Mixnet
 from config import *
 
 if mixed_precision:
@@ -62,7 +62,8 @@ valid_df = df[df['fold'] == valid_folds[0]]
 for i in valid_folds[1:]:
   valid_df = pd.concat([valid_df, df[df['fold'] == i]])
 valid_meta = np.array(valid_df[meta_features].values, dtype=np.float32)
-model = Resnest(pretrained_model, use_meta=use_meta, out_neurons=500, meta_neurons=250).to(device)
+model = Mixnet(pretrained_model, use_meta=use_meta, out_neurons=500, meta_neurons=250).to(device)
+# model = Resnest(pretrained_model, use_meta=use_meta, out_neurons=500, meta_neurons=250).to(device)
 
 # model = seresnext(pretrained_model, use_meta=True).to(device)
 # model = EffNet(pretrained_model=pretrained_model, use_meta=True, freeze_upto=freeze_upto, out_neurons=500, meta_neurons=250).to(device)

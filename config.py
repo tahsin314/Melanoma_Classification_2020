@@ -26,8 +26,8 @@ from albumentations import (
 n_fold = 5
 fold = 0
 SEED = 24
-batch_size = 24
-sz = 512
+batch_size = 10
+sz = 600
 learning_rate = 3e-3
 patience = 3
 accum_step = 50 // batch_size
@@ -36,12 +36,12 @@ choice_weights = [0.80, 0.10, 0.10]
 device = 'cuda:0'
 mixed_precision = True
 use_meta = False
-pretrained_model = 'mixnet_xl'
+pretrained_model = 'efficientnet-b6'
 model_name = f'{pretrained_model}_dim_{sz}'
 # model_name = 'efficientnet-b6_trial_stage1_fold_0'
 model_dir = 'model_dir'
 history_dir = 'history_dir'
-load_model = True
+load_model = False
 freeze_upto = -1 # Freezes upto bottom n_blocks
 if load_model and os.path.exists(os.path.join(history_dir, f'history_{model_name}.csv')):
     history = pd.read_csv(os.path.join(history_dir, f'history_{model_name}.csv'))

@@ -26,7 +26,7 @@ from utils import *
 from optimizers import Over9000
 from model.seresnext import seresnext
 from model.effnet import EffNet, EffNet_ArcFace
-from model.resnest import Resnest
+from model.resnest import Resnest, Mixnet
 # from model.densenet import *
 from config import *
 
@@ -81,7 +81,8 @@ test_df = pd.read_csv('test_768v2.csv')
 test_image_path = 'data/test_768'
 test_meta = np.array(test_df[meta_features].values, dtype=np.float32)
 
-model = Resnest(pretrained_model, use_meta=use_meta, out_neurons=500, meta_neurons=250).to(device)
+# model = Resnest(pretrained_model, use_meta=use_meta, out_neurons=500, meta_neurons=250).to(device)
+model = Mixnet(pretrained_model, use_meta=use_meta, out_neurons=500, meta_neurons=250).to(device)
 # model = EffNet(pretrained_model=pretrained_model, use_meta=True, freeze_upto=freeze_upto, out_neurons=500, meta_neurons=250).to(device)
 # model = seresnext(pretrained_model, use_meta=True).to(device)
 pred_cols = ['image_name'].extend([f'TTA{i}' for i in range(TTA)])
