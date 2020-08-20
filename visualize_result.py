@@ -28,7 +28,7 @@ from utils import *
 from optimizers import Over9000
 from model.seresnext import seresnext
 from model.effnet import EffNet, EffNet_ArcFace
-from model.resnest import Resnest, Mixnet
+from model.resnest import Resnest, Mixnet, Attn_Resnest
 from config import *
 
 if mixed_precision:
@@ -62,9 +62,11 @@ valid_df = df[df['fold'] == valid_folds[0]]
 for i in valid_folds[1:]:
   valid_df = pd.concat([valid_df, df[df['fold'] == i]])
 valid_meta = np.array(valid_df[meta_features].values, dtype=np.float32)
-model = Mixnet(pretrained_model, use_meta=use_meta, out_neurons=500, meta_neurons=250).to(device)
+# model = Mixnet(pretrained_model, use_meta=use_meta, out_neurons=500, meta_neurons=250).to(device)
 # model = Resnest(pretrained_model, use_meta=use_meta, out_neurons=500, meta_neurons=250).to(device)
-
+# model = Attn_Resnest(pretrained_model, use_meta=use_meta, out_neurons=500, meta_neurons=250).to(device)
+# model = EffNet_ArcFace(pretrained_model=pretrained_model, use_meta=use_meta, freeze_upto=freeze_upto, out_neurons=500, meta_neurons=250).to(device)
+model = EffNet(pretrained_model=pretrained_model, use_meta=use_meta, freeze_upto=freeze_upto, out_neurons=500, meta_neurons=250).to(device)
 # model = seresnext(pretrained_model, use_meta=True).to(device)
 # model = EffNet(pretrained_model=pretrained_model, use_meta=True, freeze_upto=freeze_upto, out_neurons=500, meta_neurons=250).to(device)
 
@@ -238,13 +240,15 @@ lr_reduce_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode
 criterion = criterion_margin_focal_binary_cross_entropy
 
 if load_model:
-  tmp = torch.load(os.path.join(model_dir, model_name+'_auc.pth'))
+  tmp = torch.load(os.path.join(model_dir, model_name+'_loss.pth'))
   model.load_state_dict(tmp['model'])
   if mixed_precision:
     scaler.load_state_dict(tmp['scaler'])
   # amp.load_state_dict(tmp['amp'])
   prev_epoch_num = tmp['epoch']
   best_valid_loss = tmp['best_loss']
+  best_valid_auc = tmp['best_auc']
+  print(best_valid_auc)
   print('Model Loaded!')
 
 # valid_loss, valid_auc = train_val(-1, valid_loader, optimizer=optimizer, rate=1.00)

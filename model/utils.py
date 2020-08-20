@@ -187,6 +187,7 @@ class AttentionBlock(nn.Module):
         self.W_l = nn.Conv2d(in_channels=in_features_l, out_channels=attn_features, kernel_size=1, padding=0, bias=False)
         self.W_g = nn.Conv2d(in_channels=in_features_g, out_channels=attn_features, kernel_size=1, padding=0, bias=False)
         self.phi = nn.Conv2d(in_channels=attn_features, out_channels=1, kernel_size=1, padding=0, bias=True)
+    
     def forward(self, l, g):
         N, C, W, H = l.size()
         l_ = self.W_l(l)

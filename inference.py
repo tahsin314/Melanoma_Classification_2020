@@ -16,7 +16,7 @@ from tqdm import tqdm as T
 from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import roc_auc_score
 import torch, torchvision
-from torchsummary import summary
+# from torchsummary import summary
 from torch.utils.tensorboard import SummaryWriter
 from torch import optim
 from torch.nn import functional as F
@@ -26,7 +26,7 @@ from utils import *
 from optimizers import Over9000
 from model.seresnext import seresnext
 from model.effnet import EffNet, EffNet_ArcFace
-from model.resnest import Resnest, Mixnet
+from model.resnest import Resnest, Mixnet, Attn_Resnest
 # from model.densenet import *
 from config import *
 
@@ -77,12 +77,15 @@ tta_aug =Compose([
     Normalize(always_apply=True)
     ]
       )
-test_df = pd.read_csv('test_768v2.csv')
+test_df = pd.read_csv('data/test_768.csv')
 test_image_path = 'data/test_768'
 test_meta = np.array(test_df[meta_features].values, dtype=np.float32)
 
+model = EffNet(pretrained_model=pretrained_model, use_meta=use_meta, freeze_upto=freeze_upto, out_neurons=500, meta_neurons=250).to(device)
+# model = Attn_Resnest(pretrained_model, use_meta=use_meta, out_neurons=500, meta_neurons=250).to(device)
 # model = Resnest(pretrained_model, use_meta=use_meta, out_neurons=500, meta_neurons=250).to(device)
-model = Mixnet(pretrained_model, use_meta=use_meta, out_neurons=500, meta_neurons=250).to(device)
+# model = Mixnet(pretrained_model, use_meta=use_meta, out_neurons=500, meta_neurons=250).to(device)
+# model = EffNet_ArcFace(pretrained_model=pretrained_model, use_meta=use_meta, freeze_upto=freeze_upto, out_neurons=500, meta_neurons=250).to(device)
 # model = EffNet(pretrained_model=pretrained_model, use_meta=True, freeze_upto=freeze_upto, out_neurons=500, meta_neurons=250).to(device)
 # model = seresnext(pretrained_model, use_meta=True).to(device)
 pred_cols = ['image_name'].extend([f'TTA{i}' for i in range(TTA)])
@@ -121,7 +124,7 @@ def evaluate():
   #  return img_ids, temp_df
 
 if load_model:
-  tmp = torch.load(os.path.join(model_dir, model_name+'_auc.pth'))
+  tmp = torch.load(os.path.join(model_dir, model_name+'_loss.pth'))
   model.load_state_dict(tmp['model'])
   if mixed_precision:
     scaler.load_state_dict(tmp['scaler'])

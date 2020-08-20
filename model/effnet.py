@@ -105,7 +105,10 @@ class EffNet_ArcFace(nn.Module):
                                   nn.Dropout(p=0.3))
             self.metric_classify = ArcMarginProduct(self.out_neurons+self.meta_neurons, 2)
         else:
-            self.backbone._fc = nn.Linear(in_features=in_features, out_features=2, bias=True)
+            self.backbone._avg_pooling = nn.Sequential(AdaptiveConcatPool2d(), Swish(), Flatten())
+            in_features = self.backbone._conv_head.out_channels
+            self.backbone._fc = nn.Linear(in_features=2*in_features, out_features=self.out_neurons, bias=True)
+            self.output = ArcMarginProduct(self.out_neurons, 2)
         
     def forward(self, x, meta_data=None):
         if self.use_meta:
@@ -116,7 +119,8 @@ class EffNet_ArcFace(nn.Module):
             return output
         else:
             x = self.backbone(x)
-            return x
+            output = self.output(x)
+            return output
     
     def freeze_upto_blocks(self, n_blocks):
         '''

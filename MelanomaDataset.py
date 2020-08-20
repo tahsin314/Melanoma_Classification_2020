@@ -34,6 +34,7 @@ class MelanomaDataset(Dataset):
         
     def __getitem__(self, idx):
         image_id = self.image_ids[idx]
+        # print(image_id)
         image = cv2.imread(image_id, cv2.IMREAD_COLOR)
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         image = cv2.resize(image, (self.dim, self.dim))

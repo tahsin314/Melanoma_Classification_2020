@@ -26,17 +26,17 @@ from albumentations import (
 n_fold = 5
 fold = 0
 SEED = 24
-batch_size = 10
-sz = 600
-learning_rate = 3e-3
+batch_size = 12
+sz = 576
+learning_rate = 1e-3
 patience = 3
 accum_step = 50 // batch_size
 opts = ['normal', 'mixup', 'cutmix']
-choice_weights = [0.80, 0.10, 0.10]
+choice_weights = [0.84, 0.08, 0.08]
 device = 'cuda:0'
 mixed_precision = True
 use_meta = False
-pretrained_model = 'efficientnet-b6'
+pretrained_model = 'hybrid'
 model_name = f'{pretrained_model}_dim_{sz}'
 # model_name = 'efficientnet-b6_trial_stage1_fold_0'
 model_dir = 'model_dir'
@@ -51,7 +51,7 @@ else:
 imagenet_stats = ([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 n_epochs = 60
 TTA = 6
-balanced_sampler = True
+balanced_sampler = False
 pseudo_lo_thr = 0.10
 pseudo_up_thr = 0.70
 

@@ -11,14 +11,16 @@ from pytorchcv.model_provider import get_model as ptcv_get_model
 # from .utils import get_cadene_model
 from typing import Optional
 from .utils import *
+from losses.arcface import ArcMarginProduct
+        
 import timm
 from pprint import pprint
 
 model_names = timm.list_models('mix*')
-print(model_names)
+print(torch.hub.list('zhanghang1989/ResNeSt', force_reload=True))
 class Resnest(nn.Module):
 
-    def __init__(self, model_name='resnest50d_1s4x24d', use_meta=True, out_neurons=600, meta_neurons=150):
+    def __init__(self, model_name='resnest50_fast_1s1x64d', use_meta=True, out_neurons=600, meta_neurons=150):
         super().__init__()
         self.backbone = timm.create_model(model_name, pretrained=True)
         self.use_meta = use_meta
@@ -35,15 +37,109 @@ class Resnest(nn.Module):
         x = self.backbone.layer2(x)
         
         x = self.backbone.layer3(x)
+        x = self.backbone.layer4(x)
+        x = self.head(x, meta_data)
+        return x
+
+class Attn_Resnest(nn.Module):
+
+    def __init__(self, model_name='resnest50_fast_1s1x64d', normalize_attn=False, use_meta=True, out_neurons=600, meta_neurons=150):
+        super().__init__()
+        # self.backbone = timm.create_model(model_name, pretrained=True)
+        self.backbone = torch.hub.load('zhanghang1989/ResNeSt', model_name, pretrained=True)
+        self.use_meta = use_meta
+        self.in_features = 2048
+        self.head = Head(self.in_features,2, activation='mish', use_meta=self.use_meta)
+        self.relu = Mish()
+        self.maxpool = GeM()
+        self.attn1 = AttentionBlock(256, 1024, 512, 4, normalize_attn=normalize_attn)
+        self.attn2 = AttentionBlock(512, 1024, 512, 2, normalize_attn=normalize_attn)
+        self.output1 = nn.Linear(770, 128)
+        self.output = nn.Linear(128, 2)
+
+    def forward(self, x, meta_data=None):
+        x = self.backbone.conv1(x)
+        x = self.backbone.bn1(x)
+        x = self.backbone.relu(x)
+        x = self.backbone.maxpool(x)
+
+        layer1 = self.backbone.layer1(x)
+        layer2 = self.backbone.layer2(layer1)
+        layer3 = self.backbone.layer3(layer2)
+        layer4 = self.backbone.layer4(layer3)
+        a1, g1 = self.attn1(layer1, layer3)
+        a2, g2 = self.attn2(layer2, layer3)
+        g = self.head(layer4, meta_data)
+        g_hat = torch.cat((g,g1,g2), dim=1) # batch_size x C
+        out = self.output1(g_hat)
+        out = self.output(out)
+        return out
+
+class Resnest_ArcFace(nn.Module):
+
+    def __init__(self, model_name='resnest50_fast_1s1x64d', use_meta=True, out_neurons=600, meta_neurons=150):
+        super().__init__()
+        # self.backbone = timm.create_model(model_name, pretrained=False)
+        self.backbone = torch.hub.load('zhanghang1989/ResNeSt', model_name, pretrained=True)
+        self.use_meta = use_meta
+        self.in_features = 2048
+        self.head = Head(self.in_features,128, activation='mish', use_meta=self.use_meta)
+        self.metric_classify = ArcMarginProduct(128, 2)
+        self.relu = Mish()
+        self.maxpool = GeM()
+
+    def forward(self, x, meta_data=None):
+        x = self.backbone.conv1(x)
+        x = self.backbone.bn1(x)
+        x = self.backbone.relu(x)
+        x = self.backbone.maxpool(x)
+
+        x = self.backbone.layer1(x)
+        x = self.backbone.layer2(x)
+        
+        x = self.backbone.layer3(x)
         
         x = self.backbone.layer4(x)
         
         x = self.head(x, meta_data)
+        x = self.metric_classify(x)
         return x
+
+class Attn_Resnest_ArcFace(nn.Module):
+
+    def __init__(self, model_name='resnest50_fast_1s1x64d', normalize_attn=False, use_meta=True, out_neurons=600, meta_neurons=150):
+        super().__init__()
+        # self.backbone = timm.create_model(model_name, pretrained=False)
+        self.backbone = torch.hub.load('zhanghang1989/ResNeSt', model_name, pretrained=True)
+        self.use_meta = use_meta
+        self.in_features = 2048
+        self.head = Head(self.in_features,128, activation='mish', use_meta=self.use_meta)
+        self.metric_classify = ArcMarginProduct(128+256+512, 2)
+        self.relu = Mish()
+        self.maxpool = GeM()
+        self.attn1 = AttentionBlock(256, 1024, 512, 4, normalize_attn=normalize_attn)
+        self.attn2 = AttentionBlock(512, 1024, 512, 2, normalize_attn=normalize_attn)
+
+    def forward(self, x, meta_data=None):
+        x = self.backbone.conv1(x)
+        x = self.backbone.bn1(x)
+        x = self.backbone.relu(x)
+        x = self.backbone.maxpool(x)
+
+        layer1 = self.backbone.layer1(x)
+        layer2 = self.backbone.layer2(layer1)
+        layer3 = self.backbone.layer3(layer2)
+        layer4 = self.backbone.layer4(layer3)
+        a1, g1 = self.attn1(layer1, layer3)
+        a2, g2 = self.attn2(layer2, layer3)
+        g = self.head(layer4, meta_data)
+        g_hat = torch.cat((g,g1,g2), dim=1) # batch_size x C
+        out = self.metric_classify(g_hat)
+        return out
 
 class Mixnet(nn.Module):
 
-    def __init__(self, model_name='resnest50d_1s4x24d', use_meta=True, out_neurons=600, meta_neurons=150):
+    def __init__(self, model_name='mixnet_xxl', use_meta=True, out_neurons=600, meta_neurons=150):
         super().__init__()
         self.backbone = timm.create_model(model_name, pretrained=True)
         self.use_meta = use_meta
