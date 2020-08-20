@@ -44,6 +44,7 @@ My scripts for the [SIIM-ISIC Melanoma Classification challenge 2020](https://ww
 - In the `config.py` file change the `data_dir` variable to your data directory name.
 - Run `conda env create -f environment.yml`
 - Activate the newly created conda environment.
+- Download `Hair Images` from [here](https://www.kaggle.com/nroman/melanoma-hairs) and put it into the `augmentations/images/` directory.
 - Run `train.py`. Change parameters according to your preferences from the `config.py` file before training.
 
 ### One important thing about EfficientNet
