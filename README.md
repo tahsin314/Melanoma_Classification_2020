@@ -20,6 +20,8 @@ My scripts for the [SIIM-ISIC Melanoma Classification challenge 2020](https://ww
 
 - &#x2611; ArcFace Loss
 
+- &#x2611; TTA 
+
 
 ## Resources
 - [Margin Focal Loss](https://www.kaggle.com/c/siim-isic-melanoma-classification/discussion/155201)
@@ -72,7 +74,7 @@ Efficientnet-B7 : 600
 - Progressive Resizing (It might have improved my score but I'm not so sure.)
 - Class Balanced Training
 - Visual Attention
-
+- TTA (ShiftScaleRotate, RandomSizedCrop, HueSaturationValue, HorizontalFlip, VerticalFlip)
 ### What did not work for me:
 - Metric Loss (Converges Faster but unstable)
 - Microscope Augmentation
