@@ -7,8 +7,8 @@ dependencies:
   - _libgcc_mutex=0.1=main
   - astroid=2.4.2=py37_0
   - blas=1.0=mkl
-  - ca-certificates=2020.6.20=hecda079_0
-  - certifi=2020.6.20=py37hc8dfbb8_0
+  - ca-certificates=2020.6.24=0
+  - certifi=2020.6.20=py37_0
   - cffi=1.14.1=py37he30daa8_0
   - chardet=3.0.4=py37hc8dfbb8_1006
   - cryptography=3.0=py37hb09aad4_0
@@ -70,5 +70,18 @@ dependencies:
   - xz=5.2.5=h7b6447c_0
   - zlib=1.2.11=h7b6447c_3
   - zstd=1.4.5=h9ceee32_0
+  - pip:
+    - albumentations==0.4.6
+    - efficientnet-pytorch==0.6.3
+    - imageio==2.9.0
+    - imgaug==0.4.0
+    - munch==2.5.0
+    - networkx==2.4
+    - opencv-python==4.4.0.40
+    - pretrainedmodels==0.7.4
+    - pytorchcv==0.0.58
+    - pywavelets==1.1.1
+    - scikit-image==0.17.2
+    - shapely==1.7.0
+    - tifffile==2020.8.13
 prefix: /home/ubuntu/anaconda3/envs/tahsinv2
-
