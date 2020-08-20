@@ -36,6 +36,10 @@ from model.seresnext import seresnext
 from model.effnet import EffNet, EffNet_ArcFace
 from config import *
 from lr_finder import LRFinder
+
+if mixed_precision:
+  scaler = torch.cuda.amp.GradScaler()
+  
 prev_epoch_num = 0
 best_valid_loss = np.inf
 best_valid_auc = 0.0
@@ -43,38 +47,38 @@ balanced_sampler = False
 np.random.seed(SEED)
 os.makedirs(model_dir, exist_ok=True)
 os.makedirs(history_dir, exist_ok=True)
-pseduo_df = pseudo_label_df(pseduo_df, pseudo_lo_thr, pseudo_up_thr)
+pseduo_df = rank_based_pseudo_label_df(pseduo_df, 0.2, 0.99)
 pseudo_labels = list(pseduo_df['target'])
 print("Pseudo data length: {}".format(len(pseduo_df)))
 print("Negative label: {}, Positive label: {}".format(pseudo_labels.count(0), pseudo_labels.count(1))) 
-df = pd.read_csv('data/folds.csv')
-pseduo_df['fold'] = np.nan
-pseduo_df['fold'] = pseduo_df['fold'].map(lambda x: n_fold)
-X, y = df['image_id'], df['target']
-# train_df['fold'] = np.nan
-df = meta_df(df, image_path)
-pseduo_df = meta_df(pseduo_df, test_image_path)
+df = pd.read_csv('data/train_768.csv')
 
-#split data
-# mskf = StratifiedKFold(n_splits=n_fold, shuffle=True, random_state=SEED)
-# for i, (_, test_index) in enumerate(mskf.split(X, y)):
-#     train_df.iloc[test_index, -1] = i
+pseduo_df['fold'] = np.nan
+pseduo_df['fold'] = pseduo_df['fold'].map(lambda x: 16)
+# pseduo_df = meta_df(pseduo_df, test_image_path)
     
 df['fold'] = df['fold'].astype('int')
 idxs = [i for i in range(len(df))]
 train_idx = []
 val_idx = []
-train_df = df[df['fold'] != fold]
+train_folds = [0, 1, 2, 3, 5, 6, 7, 8, 10, 11, 12, 13, 15, 16]
+valid_folds = [4, 9, 14]
+train_df = df[df['fold'] == train_folds[0]]
+valid_df = df[df['fold'] == valid_folds[0]]
+for i in train_folds[1:]:
+  train_df = pd.concat([train_df, df[df['fold'] == i]])
+for i in valid_folds[1:]:
+  valid_df = pd.concat([valid_df, df[df['fold'] == i]])
+
 train_df = pd.concat([train_df, pseduo_df], ignore_index=True)
-valid_df = df[(df['fold'] == fold) & (df['source'] == 'ISIC20')]
 test_df = pseduo_df
 train_meta = np.array(train_df[meta_features].values, dtype=np.float32)
 valid_meta = np.array(valid_df[meta_features].values, dtype=np.float32)
 test_meta = np.array(test_df[meta_features].values, dtype=np.float32)
 # model = seresnext(pretrained_model).to(device)
-model = EffNet(pretrained_model=pretrained_model, n_meta_features=train_meta.shape[1], freeze_upto=freeze_upto).to(device)
+model = EffNet(pretrained_model=pretrained_model, freeze_upto=freeze_upto).to(device)
 
-train_ds = MelanomaDataset(train_df.path.values, train_meta, train_df.target.values, dim=sz, transforms=train_aug)
+train_ds = MelanomaDataset(train_df.image_name.values, train_meta, train_df.target.values, dim=sz, transforms=train_aug)
 if balanced_sampler:
   print('Using Balanced Sampler....')
   train_loader = DataLoader(train_ds,batch_size=batch_size, sampler=BalanceClassSampler(labels=train_ds.get_labels(), mode="downsampling"), shuffle=False, num_workers=4)

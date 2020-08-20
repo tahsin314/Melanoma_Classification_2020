@@ -10,8 +10,23 @@ import albumentations
 from albumentations.core.transforms_interface import DualTransform
 from albumentations.augmentations import functional as F_alb
 
+gen_challenge = {'lower extremity': 2, 'torso':3, 'head/neck':0, 'oral/genital':5, 'palms/soles':4, 'nan':-1, 'upper extremity':1}
+
 def pseudo_label_df(df, lo_th=0.1, up_th=0.8):
     pred = df['prediction'].copy()
+    pred[pred<lo_th] = 0
+    pred[pred>up_th] = 1
+    df['prediction'] = pred
+    df = df.drop(df[(df.prediction> 0) & (df.prediction < 1)].index)
+    df['target'] = df['prediction'].astype('int')
+    return df
+
+def rank_based_pseudo_label_df(df, lo_th=0.1, up_th=0.8):
+    df['prediction'] = df['prediction'].astype('float')
+    df = df.sort_values(by=['prediction'], ascending=False)
+    df = df[:int(0.3*len(df))]
+    # df['prediction'] = df['prediction'].rank()/df['prediction'].rank().max()
+    pred = df['prediction'].astype('float').copy()
     pred[pred<lo_th] = 0
     pred[pred>up_th] = 1
     df['prediction'] = pred
@@ -33,7 +48,7 @@ def meta_df(df, image_path):
     df['sex'] = df['sex'].fillna(-1)
 
     # Age features
-    df['age_approx'] /= df['age_approx'].max()
+    # df['age_approx'] /= df['age_approx'].max()
     df['age_approx'] = df['age_approx'].fillna(0)
     df['patient_id'] = df['patient_id'].fillna(0)
     try:
@@ -139,15 +154,28 @@ def ohem_loss(rate, base_crit, cls_pred, cls_target):
         keep_idx_cuda = idx[:keep_num]
         ohem_cls_loss = ohem_cls_loss[keep_idx_cuda]
     cls_loss = ohem_cls_loss.sum() / keep_num
-    return cls_loss
+    return cls_loss * batch_size
 
 def save_model(valid_loss, valid_auc, best_valid_loss, best_valid_auc, best_state, savepath):
     if valid_loss<best_valid_loss:
         print(f'Validation loss has decreased from:  {best_valid_loss:.4f} to: {valid_loss:.4f}. Saving checkpoint')
-        torch.save(best_state, savepath+'_loss.pth')
+        torch.save(best_state, savepath+'_tasn_loss.pth')
         best_valid_loss = valid_loss
     if valid_auc>best_valid_auc:
         print(f'Validation auc has increased from:  {best_valid_auc:.4f} to: {valid_auc:.4f}. Saving checkpoint')
-        torch.save(best_state, savepath + '_auc.pth')
+        torch.save(best_state, savepath + '_tasn_auc.pth')
         best_valid_auc = valid_auc
+    else:
+        torch.save(best_state, savepath + '_tasn_last.pth')
     return best_valid_loss, best_valid_auc 
+
+def auc_hack(preds, EXP=-1.2):
+    p = np.argmax(preds,axis=1)
+    s = pd.Series(p)
+    vc = s.value_counts().sort_index()
+    df = pd.DataFrame({'a':np.arange(2),'b':np.ones(2)})
+    df.b = df.a.map(vc)
+    df.fillna(df.b.min(),inplace=True)
+    mat1 = np.diag(df.b.astype('float32')**EXP)
+    p= preds.dot(mat1)
+    return p[:, 1]

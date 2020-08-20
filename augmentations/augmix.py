@@ -140,9 +140,9 @@ def normalize(image):
 
 def apply_op(image, op, severity):
     #   image = np.clip(image, 0, 255)
-    pil_img = Image.fromarray((255*image).astype(np.uint8))  # Convert to PIL.Image
+    pil_img = Image.fromarray(image)  # Convert to PIL.Image
     pil_img = op(pil_img, severity)
-    return np.asarray(pil_img)/255.
+    return np.asarray(pil_img)
 
 def augment_and_mix(image, severity=3, width=3, depth=-1, alpha=1.):
     """Perform AugMix augmentations and compute mixture.
@@ -186,7 +186,6 @@ class RandomAugMix(ImageOnlyTransform):
         self.alpha = alpha
 
     def apply(self, image, **params):
-        image = np.squeeze(image)
         image = augment_and_mix(
             image,
             self.severity,
@@ -194,4 +193,4 @@ class RandomAugMix(ImageOnlyTransform):
             self.depth,
             self.alpha
         )
-        return np.expand_dims(image, axis=2)
+        return image

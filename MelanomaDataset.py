@@ -20,7 +20,7 @@ warnings.filterwarnings('ignore')
 
 def onehot(size, target):
     vec = torch.zeros(size, dtype=torch.float32)
-    vec[target] = 1.
+    vec[target.astype('int')] = 1.
     return vec
 
 class MelanomaDataset(Dataset):
@@ -31,14 +31,20 @@ class MelanomaDataset(Dataset):
         self.transforms = transforms
         self.dim = dim
         self.meta_features = meta_features
-
+        
     def __getitem__(self, idx):
         image_id = self.image_ids[idx]
+        # print(image_id)
         image = cv2.imread(image_id, cv2.IMREAD_COLOR)
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         image = cv2.resize(image, (self.dim, self.dim))
+        self.gen_challenge = np.zeros(7)
+        self.gen_challenge[self.meta_features[idx][-1].astype('int')+1] = 1
+        meta = self.meta_features[idx][:-1]
+        meta[1] /= 100.0
+        meta = np.hstack((meta, self.gen_challenge))
         # image = image.astype(np.float32) / 255.0
-        
+
         if self.transforms is not None:
             aug = self.transforms(image=image)
             image = aug['image'].reshape(self.dim, self.dim, 3).transpose(2, 0, 1)
@@ -46,9 +52,9 @@ class MelanomaDataset(Dataset):
             image = image.reshape(self.dim, self.dim, 3).transpose(2, 0, 1)
         if self.labels is not None:
             target = self.labels[idx]
-            return image, self.meta_features[idx], onehot(2, target)
+            return image_id, image, meta.astype('float32'), onehot(2, target)
         else:
-            return image_id, image, self.meta_features[idx]
+            return image_id, image, meta.astype('float32')
 
     def __len__(self):
         return len(self.image_ids)
