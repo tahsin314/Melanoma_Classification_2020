@@ -71,6 +71,7 @@ Efficientnet-B7 : 600
 - Higher Image Dimensions
 - Progressive Resizing (It might have improved my score but I'm not so sure.)
 - Class Balanced Training
+- Visual Attention
 
 ### What did not work for me:
 - Metric Loss (Converges Faster but unstable)
