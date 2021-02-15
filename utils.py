@@ -159,14 +159,14 @@ def ohem_loss(rate, base_crit, cls_pred, cls_target):
 def save_model(valid_loss, valid_auc, best_valid_loss, best_valid_auc, best_state, savepath):
     if valid_loss<best_valid_loss:
         print(f'Validation loss has decreased from:  {best_valid_loss:.4f} to: {valid_loss:.4f}. Saving checkpoint')
-        torch.save(best_state, savepath+'_tasn_loss.pth')
+        torch.save(best_state, savepath+'_loss.pth')
         best_valid_loss = valid_loss
     if valid_auc>best_valid_auc:
         print(f'Validation auc has increased from:  {best_valid_auc:.4f} to: {valid_auc:.4f}. Saving checkpoint')
-        torch.save(best_state, savepath + '_tasn_auc.pth')
+        torch.save(best_state, savepath + '_auc.pth')
         best_valid_auc = valid_auc
     else:
-        torch.save(best_state, savepath + '_tasn_last.pth')
+        torch.save(best_state, savepath + '_last.pth')
     return best_valid_loss, best_valid_auc 
 
 def auc_hack(preds, EXP=-1.2):

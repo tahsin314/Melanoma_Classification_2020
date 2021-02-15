@@ -1,4 +1,5 @@
 import os
+os.environ["CUDA_VISIBLE_DEVICES"] = "1, 2, 3"
 import cv2
 import pandas as pd
 import torch
@@ -26,14 +27,15 @@ from albumentations import (
 n_fold = 5
 fold = 0
 SEED = 24
-batch_size = 12
-sz = 576
-learning_rate = 1e-3
+batch_size = 60
+sz = 512
+learning_rate = 3e-3
 patience = 3
-accum_step = 50 // batch_size
+accum_step = 1
 opts = ['normal', 'mixup', 'cutmix']
 choice_weights = [0.84, 0.08, 0.08]
-device = 'cuda:0'
+gpu_ids = [1, 2]
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 mixed_precision = True
 use_meta = False
 pretrained_model = 'hybrid'
@@ -88,7 +90,7 @@ val_aug = Compose([Normalize(always_apply=True)])
 data_dir = 'data'
 image_path = f'{data_dir}/train_768'
 test_image_path = f'{data_dir}/test_768'
-pseduo_df = pd.read_csv('submissions/sub_946.csv')
+# pseduo_df = pd.read_csv('submissions/sub_946.csv')
 # df = pd.read_csv(f'{data_dir}/folds.csv')
 gen_challenge = {'lower extremity': 2, 'torso':3, 'head/neck':0, 'oral/genital':5, 'palms/soles':4, 'upper extremity':1}
 # meta_features = ['sex', 'age_approx', 'site_head/neck', 'site_lower extremity', 'site_oral/genital', 'site_palms/soles', 'site_torso', 'site_upper extremity', 'site_nan']
